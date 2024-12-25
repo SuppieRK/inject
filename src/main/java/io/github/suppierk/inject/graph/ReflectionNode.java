@@ -135,6 +135,7 @@ public abstract class ReflectionNode<T> extends Node<T> {
     return instance;
   }
 
+  /** {@inheritDoc} */
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof ReflectionNode)) return false;
@@ -145,6 +146,7 @@ public abstract class ReflectionNode<T> extends Node<T> {
         && Objects.equals(fieldsInformation, that.fieldsInformation);
   }
 
+  /** {@inheritDoc} */
   @Override
   public int hashCode() {
     return Objects.hash(

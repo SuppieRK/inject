@@ -1,13 +1,16 @@
 package io.github.suppierk.inject.graph;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.suppierk.inject.Injector;
 import io.github.suppierk.inject.InjectorReference;
+import io.github.suppierk.inject.TimedCloseable;
 import io.github.suppierk.utils.ConsoleConstants;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -23,7 +26,7 @@ class ValueTest {
     EqualsVerifier.simple()
         .forClass(Value.class)
         .withPrefabValues(Injector.class, redInjector, blueInjector)
-        .withIgnoredFields("injectorReference", "parentKeys")
+        .withIgnoredFields("injectorReference", "parentKeys", "onCloseConsumer")
         .verify();
   }
 
@@ -45,6 +48,17 @@ class ValueTest {
     assertNotNull(copy);
     assertEquals(original, copy);
     assertNotSame(original, copy);
+  }
+
+  @Test
+  void close_test() {
+    final var injectorReference = new InjectorReference();
+    final var value = new TimedCloseable();
+
+    final var original = new Value<>(injectorReference, value);
+
+    assertDoesNotThrow(original::close);
+    assertTrue(value.wasCloseCalled());
   }
 
   @Test

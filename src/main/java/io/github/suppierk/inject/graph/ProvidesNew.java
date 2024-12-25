@@ -43,6 +43,7 @@ import java.util.stream.Collectors;
 public class ProvidesNew<T> extends ReflectionNode<T> {
   protected final Key<?> classKey;
   protected final Method method;
+  protected final Class<T> methodReturnClass;
 
   /**
    * Default constructor.
@@ -50,6 +51,7 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
    * @param injectorReference for dependency lookups
    * @param classKey of the {@link ConstructsNew} to obtain class instance
    * @param method to call on the class instance
+   * @param methodReturnClass to call on the class instance
    * @param parametersInformation of the method to be invoked during dependency injection
    * @param fieldsInformation of the class to be set during dependency injection
    * @throws IllegalArgumentException if class key or method are {@code null}
@@ -58,6 +60,7 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
       InjectorReference injectorReference,
       Key<?> classKey,
       Method method,
+      Class<T> methodReturnClass,
       List<ParameterInformation> parametersInformation,
       List<FieldInformation> fieldsInformation) {
     super(injectorReference, parametersInformation, fieldsInformation, classKey);
@@ -66,8 +69,13 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
       throw new IllegalArgumentException("Method is null");
     }
 
+    if (methodReturnClass == null) {
+      throw new IllegalArgumentException("Method return class is null");
+    }
+
     this.classKey = classKey;
     this.method = method;
+    this.methodReturnClass = methodReturnClass;
   }
 
   @SuppressWarnings("squid:S1452")
@@ -75,6 +83,7 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
     return classKey;
   }
 
+  /** {@inheritDoc} */
   @Override
   @SuppressWarnings("unchecked")
   public T get() {
@@ -84,8 +93,10 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
       if (method.trySetAccessible()) {
         return injectFields((T) method.invoke(objectInstance, createArguments()));
       } else {
-        throw new IllegalStateException(
-            String.format("Cannot access %s in %s", method.getName(), classKey.type().getName()));
+        throw new IllegalAccessException(
+            String.format(
+                "Cannot set accessible flag for %s in %s",
+                method.getName(), classKey.type().getName()));
       }
     } catch (IllegalAccessException | InvocationTargetException e) {
       throw new IllegalStateException(
@@ -93,25 +104,42 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
     }
   }
 
+  /** {@inheritDoc} */
   @Override
   public Node<T> copy(InjectorReference newInjector) {
     return new ProvidesNew<>(
-        newInjector, classKey, method, parametersInformation(), fieldsInformation());
+        newInjector,
+        classKey,
+        method,
+        methodReturnClass,
+        parametersInformation(),
+        fieldsInformation());
   }
 
+  /** {@inheritDoc} */
+  @Override
+  public void close() {
+    // Factory node cannot close created instances
+  }
+
+  /** {@inheritDoc} */
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof ProvidesNew)) return false;
     if (!super.equals(o)) return false;
     ProvidesNew<?> that = (ProvidesNew<?>) o;
-    return Objects.equals(classKey, that.classKey) && Objects.equals(method, that.method);
+    return Objects.equals(classKey, that.classKey)
+        && Objects.equals(method, that.method)
+        && Objects.equals(methodReturnClass, that.methodReturnClass);
   }
 
+  /** {@inheritDoc} */
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), classKey, method);
+    return Objects.hash(super.hashCode(), classKey, method, methodReturnClass);
   }
 
+  /** {@inheritDoc} */
   @Override
   public String toString() {
     return String.format(
@@ -119,10 +147,19 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
         getClass().getSimpleName(), classKey.type().getName(), method.getName());
   }
 
+  /** {@inheritDoc} */
+  @Override
   public String toYamlString(int indentationLevel) {
     return toYamlString(indentationLevel, false);
   }
 
+  /**
+   * Shared logic to create YAML structure for the current {@link Node}.
+   *
+   * @param indentationLevel for the generated YAML fragment
+   * @param isSingleton to set the field in the YAML string
+   * @return YAML string
+   */
   protected String toYamlString(int indentationLevel, boolean isSingleton) {
     final var indent = ConsoleConstants.indent(indentationLevel);
     final var nestedIndent = ConsoleConstants.indent(indentationLevel + 1);

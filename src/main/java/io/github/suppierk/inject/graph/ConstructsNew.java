@@ -63,6 +63,7 @@ public class ConstructsNew<T> extends ReflectionNode<T> {
     this.constructor = constructor;
   }
 
+  /** {@inheritDoc} */
   @Override
   public T get() {
     try {
@@ -71,9 +72,7 @@ public class ConstructsNew<T> extends ReflectionNode<T> {
         final var instance = constructor.newInstance(args);
         return injectFields(instance);
       } else {
-        throw new IllegalStateException(
-            String.format(
-                "Cannot access %s constructor", constructor.getDeclaringClass().getName()));
+        throw new InstantiationException("Cannot set accessible flag for constructor");
       }
     } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
       throw new IllegalStateException(
@@ -82,10 +81,17 @@ public class ConstructsNew<T> extends ReflectionNode<T> {
     }
   }
 
+  /** {@inheritDoc} */
   @Override
   public Node<T> copy(InjectorReference newInjector) {
     return new ConstructsNew<>(
         newInjector, constructor, parametersInformation(), fieldsInformation());
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void close() {
+    // Factory node cannot close created instances
   }
 
   /** Constructor equality leverages parameters, which we already check in superclass. */
@@ -104,15 +110,25 @@ public class ConstructsNew<T> extends ReflectionNode<T> {
     return super.hashCode();
   }
 
+  /** {@inheritDoc} */
   @Override
   public String toString() {
     return String.format("%s()", getClass().getSimpleName());
   }
 
+  /** {@inheritDoc} */
+  @Override
   public String toYamlString(int indentationLevel) {
     return toYamlString(indentationLevel, false);
   }
 
+  /**
+   * Shared logic to create YAML structure for the current {@link Node}.
+   *
+   * @param indentationLevel for the generated YAML fragment
+   * @param isSingleton to set the field in the YAML string
+   * @return YAML string
+   */
   protected String toYamlString(int indentationLevel, boolean isSingleton) {
     final var indent = ConsoleConstants.indent(indentationLevel);
     final var nestedIndent = ConsoleConstants.indent(indentationLevel + 1);

@@ -33,8 +33,8 @@ class ProvidesNewTest {
       this.second = second;
     }
 
-    void method(String test) {
-      // For testing
+    String method(String test) {
+      return test;
     }
 
     static Constructor<Value> constructor() {
@@ -76,24 +76,36 @@ class ProvidesNewTest {
     final var injectorReference = new InjectorReference();
     final var qualifier = new Key<>(String.class, Set.of());
     final var method = Value.method();
+    final var methodReturnClass = String.class;
     final var parameters = List.<ParameterInformation>of();
     final var fields = List.<FieldInformation>of();
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> new ProvidesNew<>(null, qualifier, method, parameters, fields));
+        () -> new ProvidesNew<>(null, qualifier, method, methodReturnClass, parameters, fields));
     assertThrows(
         IllegalArgumentException.class,
-        () -> new ProvidesNew<>(injectorReference, null, method, parameters, fields));
+        () ->
+            new ProvidesNew<>(
+                injectorReference, null, method, methodReturnClass, parameters, fields));
     assertThrows(
         IllegalArgumentException.class,
-        () -> new ProvidesNew<>(injectorReference, qualifier, null, parameters, fields));
+        () ->
+            new ProvidesNew<>(
+                injectorReference, qualifier, null, methodReturnClass, parameters, fields));
     assertThrows(
         IllegalArgumentException.class,
-        () -> new ProvidesNew<>(injectorReference, qualifier, method, null, fields));
+        () -> new ProvidesNew<>(injectorReference, qualifier, method, null, parameters, fields));
     assertThrows(
         IllegalArgumentException.class,
-        () -> new ProvidesNew<>(injectorReference, qualifier, method, parameters, null));
+        () ->
+            new ProvidesNew<>(
+                injectorReference, qualifier, method, methodReturnClass, null, fields));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ProvidesNew<>(
+                injectorReference, qualifier, method, methodReturnClass, parameters, null));
   }
 
   @Test
@@ -101,9 +113,11 @@ class ProvidesNewTest {
     final var injectorReference = new InjectorReference();
     final var qualifier = new Key<>(String.class, Set.of());
     final var method = Value.method();
+    final var methodReturnClass = String.class;
 
     final var original =
-        new ProvidesNew<>(injectorReference, qualifier, method, List.of(), List.of());
+        new ProvidesNew<>(
+            injectorReference, qualifier, method, methodReturnClass, List.of(), List.of());
     final var copy = original.copy(injectorReference);
 
     assertNotNull(copy);
@@ -116,9 +130,11 @@ class ProvidesNewTest {
     final var injectorReference = new InjectorReference();
     final var qualifier = new Key<>(String.class, Set.of());
     final var method = Value.method();
+    final var methodReturnClass = String.class;
 
     final var original =
-        new ProvidesNew<>(injectorReference, qualifier, method, List.of(), List.of());
+        new ProvidesNew<>(
+            injectorReference, qualifier, method, methodReturnClass, List.of(), List.of());
 
     assertNotNull(original.toString());
     assertFalse(original.toString().isBlank());
@@ -138,9 +154,11 @@ class ProvidesNewTest {
     final var injectorReference = new InjectorReference();
     final var qualifier = new Key<>(String.class, Set.of());
     final var method = Value.method();
+    final var methodReturnClass = String.class;
 
     final var original =
-        new ProvidesNew<>(injectorReference, qualifier, method, List.of(), List.of());
+        new ProvidesNew<>(
+            injectorReference, qualifier, method, methodReturnClass, List.of(), List.of());
 
     assertEquals(expectedYaml, original.toYamlString(0));
   }
@@ -159,9 +177,11 @@ class ProvidesNewTest {
     final var injectorReference = new InjectorReference();
     final var qualifier = new Key<>(String.class, Set.of());
     final var method = Value.method();
+    final var methodReturnClass = String.class;
 
     final var original =
-        new ProvidesNew<>(injectorReference, qualifier, method, List.of(), List.of());
+        new ProvidesNew<>(
+            injectorReference, qualifier, method, methodReturnClass, List.of(), List.of());
 
     assertEquals(expectedYaml, original.toYamlString(1));
   }
@@ -184,6 +204,7 @@ class ProvidesNewTest {
     final var injectorReference = new InjectorReference();
     final var qualifier = new Key<>(String.class, Set.of());
     final var method = Value.method();
+    final var methodReturnClass = String.class;
     final var parameter = Value.constructor().getParameters()[0];
     final var field = Value.class.getDeclaredField("first");
 
@@ -192,6 +213,7 @@ class ProvidesNewTest {
             injectorReference,
             qualifier,
             method,
+            methodReturnClass,
             List.of(
                 new ParameterInformation(parameter, new Key<>(parameter.getType(), null), null)),
             List.of(new FieldInformation(field, new Key<>(field.getType(), null), null)));
@@ -218,6 +240,7 @@ class ProvidesNewTest {
     final var injectorReference = new InjectorReference();
     final var qualifier = new Key<>(String.class, Set.of());
     final var method = Value.method();
+    final var methodReturnClass = String.class;
     final var parameter = Value.constructor().getParameters()[0];
     final var field = Value.class.getDeclaredField("first");
 
@@ -226,6 +249,7 @@ class ProvidesNewTest {
             injectorReference,
             qualifier,
             method,
+            methodReturnClass,
             List.of(
                 new ParameterInformation(parameter, new Key<>(parameter.getType(), null), null)),
             List.of(new FieldInformation(field, new Key<>(field.getType(), null), null)));

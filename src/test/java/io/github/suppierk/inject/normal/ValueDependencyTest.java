@@ -29,6 +29,26 @@ class ValueDependencyTest {
     }
   }
 
+  static class SecondValue {
+    private final Long value;
+
+    SecondValue() {
+      this.value = System.nanoTime();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (!(o instanceof SecondValue)) return false;
+      SecondValue value1 = (SecondValue) o;
+      return Objects.equals(value, value1.value);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(value);
+    }
+  }
+
   static class A {
     private final Value value;
 
@@ -50,14 +70,16 @@ class ValueDependencyTest {
   @Test
   void name() {
     final var value = new Value();
+    final var secondValue = new SecondValue();
 
     final var builder = Injector.injector();
-    assertDoesNotThrow(() -> builder.add(value));
+    assertDoesNotThrow(() -> builder.add(value, secondValue));
     assertDoesNotThrow(() -> builder.add(A.class));
     assertDoesNotThrow(() -> builder.add(B.class));
     final var injector = assertDoesNotThrow(builder::build);
 
     assertEquals(value, injector.get(Value.class));
+    assertEquals(secondValue, injector.get(SecondValue.class));
     assertEquals(value, injector.get(A.class).value);
     assertEquals(value, injector.get(B.class).value);
   }

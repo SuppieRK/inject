@@ -50,6 +50,7 @@ public final class RefersTo<T> extends Node<T> {
     super(injectorReference, singleton(parentKey));
   }
 
+  /** {@inheritDoc} */
   @Override
   @SuppressWarnings("unchecked")
   public T get() {
@@ -62,27 +63,39 @@ public final class RefersTo<T> extends Node<T> {
     return current.get();
   }
 
+  /** {@inheritDoc} */
   @Override
   public Node<T> copy(InjectorReference newInjector) {
     return new RefersTo<>(newInjector, parentKeys().iterator().next());
   }
 
+  /** {@inheritDoc} */
+  @Override
+  public void close() {
+    // Reference to another node cannot be closed
+  }
+
+  /** {@inheritDoc} */
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof RefersTo)) return false;
     return super.equals(o);
   }
 
+  /** {@inheritDoc} */
   @Override
   public int hashCode() {
     return super.hashCode();
   }
 
+  /** {@inheritDoc} */
   @Override
   public String toString() {
     return String.format("%s(%s)", getClass().getSimpleName(), parentKeys().iterator().next());
   }
 
+  /** {@inheritDoc} */
+  @Override
   public String toYamlString(int indentationLevel) {
     return String.format(
         "%sreferences:%n%s",
