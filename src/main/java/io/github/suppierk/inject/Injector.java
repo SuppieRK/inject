@@ -421,6 +421,9 @@ public final class Injector implements Closeable {
       }
 
       final var keys = createKeys(from, to);
+
+      // Closed via Injector.close()
+      @SuppressWarnings("squid:S2095")
       final var node = createConstructsNode(to);
 
       return synchronize(
