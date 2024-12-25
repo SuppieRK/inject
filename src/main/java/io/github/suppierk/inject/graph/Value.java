@@ -27,6 +27,7 @@ import io.github.suppierk.inject.InjectorReference;
 import io.github.suppierk.utils.ConsoleConstants;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * Defines dependency node with already instantiated value.
@@ -35,6 +36,7 @@ import java.util.Set;
  */
 public final class Value<T> extends Node<T> {
   private final T instance;
+  private final Consumer<T> onCloseConsumer;
 
   /**
    * Default constructor.
@@ -44,25 +46,42 @@ public final class Value<T> extends Node<T> {
    * @throws IllegalArgumentException if the value is {@code null}
    */
   public Value(InjectorReference injectorReference, T instance) {
-    super(injectorReference, Set.of());
-
-    if (instance == null) {
-      throw new IllegalArgumentException("Value is null");
-    }
-
-    this.instance = instance;
+    this(injectorReference, instance, instanceOnCloseConsumer(instance));
   }
 
+  /**
+   * Copy constructor.
+   *
+   * @param injectorReference for dependency lookups
+   * @param instance to set
+   * @param onCloseConsumer to clean yp resources
+   * @throws IllegalArgumentException if the value is {@code null}
+   */
+  private Value(InjectorReference injectorReference, T instance, Consumer<T> onCloseConsumer) {
+    super(injectorReference, Set.of());
+    this.instance = instance;
+    this.onCloseConsumer = onCloseConsumer;
+  }
+
+  /** {@inheritDoc} */
   @Override
   public T get() {
     return instance;
   }
 
+  /** {@inheritDoc} */
   @Override
   public Node<T> copy(InjectorReference newInjector) {
-    return new Value<>(newInjector, instance);
+    return new Value<>(newInjector, instance, onCloseConsumer);
   }
 
+  /** {@inheritDoc} */
+  @Override
+  public void close() {
+    onCloseConsumer.accept(instance);
+  }
+
+  /** {@inheritDoc} */
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof Value)) return false;
@@ -70,16 +89,20 @@ public final class Value<T> extends Node<T> {
     return Objects.equals(this.instance, value.instance);
   }
 
+  /** {@inheritDoc} */
   @Override
   public int hashCode() {
     return Objects.hashCode(instance);
   }
 
+  /** {@inheritDoc} */
   @Override
   public String toString() {
     return String.format("%s(%s)", getClass().getSimpleName(), instance);
   }
 
+  /** {@inheritDoc} */
+  @Override
   public String toYamlString(int indentationLevel) {
     final var indent = ConsoleConstants.indent(indentationLevel);
     final var nestedIndent = ConsoleConstants.indent(indentationLevel + 1);
@@ -87,5 +110,23 @@ public final class Value<T> extends Node<T> {
     return String.format(
         "%sinstance:%n%s",
         indent, String.format("%ssingleton: %s", nestedIndent, ConsoleConstants.blueBold("true")));
+  }
+
+  /**
+   * Small shortcut to create {@link Consumer} to clean up resources for the given class instance.
+   *
+   * @param instance to create clean up {@link Consumer}
+   * @return {@link Consumer} to clean up resources
+   * @param <C> is the type of the instance
+   * @throws IllegalArgumentException if the value is {@code null}
+   */
+  private static <C> Consumer<C> instanceOnCloseConsumer(C instance) {
+    if (instance == null) {
+      throw new IllegalArgumentException("Value is null");
+    }
+
+    @SuppressWarnings("unchecked")
+    final Class<C> instanceClass = (Class<C>) instance.getClass();
+    return createOnCloseConsumer(instanceClass);
   }
 }

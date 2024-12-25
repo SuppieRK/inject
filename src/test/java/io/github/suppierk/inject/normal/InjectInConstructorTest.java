@@ -41,8 +41,7 @@ class InjectInConstructorTest {
   @Test
   void must_correctly_inject_dependency() {
     final var builder = Injector.injector();
-    assertDoesNotThrow(() -> builder.add(A.class));
-    assertDoesNotThrow(() -> builder.add(B.class));
+    assertDoesNotThrow(() -> builder.add(A.class, B.class));
     final var injector = assertDoesNotThrow(builder::build);
 
     final var exemplar = assertDoesNotThrow(() -> injector.get(A.class));
@@ -53,8 +52,7 @@ class InjectInConstructorTest {
   @Test
   void must_correctly_inject_dependency_if_declaration_order_was_reversed() {
     final var builder = Injector.injector();
-    assertDoesNotThrow(() -> builder.add(B.class));
-    assertDoesNotThrow(() -> builder.add(A.class));
+    assertDoesNotThrow(() -> builder.add(B.class, A.class));
     final var injector = assertDoesNotThrow(builder::build);
 
     final var exemplar = assertDoesNotThrow(() -> injector.get(A.class));

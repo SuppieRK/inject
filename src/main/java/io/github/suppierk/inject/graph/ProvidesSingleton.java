@@ -30,6 +30,7 @@ import io.github.suppierk.inject.ParameterInformation;
 import io.github.suppierk.utils.Memoized;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Defines a node which calls {@link ProvidesNew} logic to instantiate the value and stores
@@ -41,6 +42,7 @@ import java.util.List;
  */
 public final class ProvidesSingleton<T> extends ProvidesNew<T> {
   private final Memoized<T> memoized;
+  private final Consumer<T> onCloseConsumer;
 
   /**
    * Default constructor.
@@ -48,6 +50,7 @@ public final class ProvidesSingleton<T> extends ProvidesNew<T> {
    * @param injectorReference for dependency lookups
    * @param classKey of the {@link ConstructsNew} to obtain class instance
    * @param method to call on the class instance
+   * @param methodReturnClass to call on the class instance
    * @param parametersInformation of the method to be invoked during dependency injection
    * @param fieldsInformation of the class to be set during dependency injection
    * @throws IllegalArgumentException if class key or method are {@code null}
@@ -56,34 +59,87 @@ public final class ProvidesSingleton<T> extends ProvidesNew<T> {
       InjectorReference injectorReference,
       Key<?> classKey,
       Method method,
+      Class<T> methodReturnClass,
       List<ParameterInformation> parametersInformation,
       List<FieldInformation> fieldsInformation) {
-    super(injectorReference, classKey, method, parametersInformation, fieldsInformation);
-    this.memoized = Memoized.memoizedProvider(super::get);
+    this(
+        injectorReference,
+        classKey,
+        method,
+        methodReturnClass,
+        createOnCloseConsumer(methodReturnClass),
+        parametersInformation,
+        fieldsInformation);
   }
 
+  /**
+   * Copy constructor.
+   *
+   * @param injectorReference for dependency lookups
+   * @param classKey of the {@link ConstructsNew} to obtain class instance
+   * @param method to call on the class instance
+   * @param parametersInformation of the method to be invoked during dependency injection
+   * @param fieldsInformation of the class to be set during dependency injection
+   * @throws IllegalArgumentException if class key or method are {@code null}
+   */
+  private ProvidesSingleton(
+      InjectorReference injectorReference,
+      Key<?> classKey,
+      Method method,
+      Class<T> methodReturnClass,
+      Consumer<T> onCloseConsumer,
+      List<ParameterInformation> parametersInformation,
+      List<FieldInformation> fieldsInformation) {
+    super(
+        injectorReference,
+        classKey,
+        method,
+        methodReturnClass,
+        parametersInformation,
+        fieldsInformation);
+    this.memoized = Memoized.memoizedProvider(super::get);
+    this.onCloseConsumer = onCloseConsumer;
+  }
+
+  /** {@inheritDoc} */
   @Override
   public T get() {
     return memoized.get();
   }
 
+  /** {@inheritDoc} */
   @Override
   public Node<T> copy(InjectorReference newInjector) {
     return new ProvidesSingleton<>(
-        newInjector, classKey, method, parametersInformation(), fieldsInformation());
+        newInjector,
+        classKey,
+        method,
+        methodReturnClass,
+        onCloseConsumer,
+        parametersInformation(),
+        fieldsInformation());
   }
 
+  /** {@inheritDoc} */
+  @Override
+  public void close() {
+    memoized.ifPresent(onCloseConsumer);
+  }
+
+  /** {@inheritDoc} */
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof ProvidesSingleton)) return false;
     return super.equals(o);
   }
 
+  /** {@inheritDoc} */
   @Override
   public int hashCode() {
     return super.hashCode();
   }
 
+  /** {@inheritDoc} */
   @Override
   public String toYamlString(int indentationLevel) {
     return toYamlString(indentationLevel, true);

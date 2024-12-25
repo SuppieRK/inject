@@ -29,6 +29,7 @@ import io.github.suppierk.inject.ParameterInformation;
 import io.github.suppierk.utils.Memoized;
 import java.lang.reflect.Constructor;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Defines a node which calls {@link ConstructsNew} logic to instantiate the value and stores
@@ -40,6 +41,7 @@ import java.util.List;
  */
 public final class ConstructsSingleton<T> extends ConstructsNew<T> {
   private final Memoized<T> memoized;
+  private final Consumer<T> onCloseConsumer;
 
   /**
    * Default constructor.
@@ -55,32 +57,68 @@ public final class ConstructsSingleton<T> extends ConstructsNew<T> {
       Constructor<T> constructor,
       List<ParameterInformation> parametersInformation,
       List<FieldInformation> fieldsInformation) {
-    super(injectorReference, constructor, parametersInformation, fieldsInformation);
-    this.memoized = Memoized.memoizedProvider(super::get);
+    this(
+        injectorReference,
+        constructor,
+        createOnCloseConsumer(constructor.getDeclaringClass()),
+        parametersInformation,
+        fieldsInformation);
   }
 
+  /**
+   * Copy constructor.
+   *
+   * @param injectorReference for dependency lookups
+   * @param constructor of the class to invoke to create a new instance
+   * @param onCloseConsumer to clean up resources
+   * @param parametersInformation of the constructor to be invoked during dependency injection
+   * @param fieldsInformation of the class to be set during dependency injection
+   * @throws IllegalArgumentException if constructor is {@code null}
+   */
+  private ConstructsSingleton(
+      InjectorReference injectorReference,
+      Constructor<T> constructor,
+      Consumer<T> onCloseConsumer,
+      List<ParameterInformation> parametersInformation,
+      List<FieldInformation> fieldsInformation) {
+    super(injectorReference, constructor, parametersInformation, fieldsInformation);
+    this.memoized = Memoized.memoizedProvider(super::get);
+    this.onCloseConsumer = onCloseConsumer;
+  }
+
+  /** {@inheritDoc} */
   @Override
   public T get() {
     return memoized.get();
   }
 
+  /** {@inheritDoc} */
   @Override
   public Node<T> copy(InjectorReference newInjector) {
     return new ConstructsSingleton<>(
-        newInjector, constructor, parametersInformation(), fieldsInformation());
+        newInjector, constructor, onCloseConsumer, parametersInformation(), fieldsInformation());
   }
 
+  /** {@inheritDoc} */
+  @Override
+  public void close() {
+    memoized.ifPresent(onCloseConsumer);
+  }
+
+  /** {@inheritDoc} */
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof ConstructsSingleton)) return false;
     return super.equals(o);
   }
 
+  /** {@inheritDoc} */
   @Override
   public int hashCode() {
     return super.hashCode();
   }
 
+  /** {@inheritDoc} */
   @Override
   public String toYamlString(int indentationLevel) {
     return toYamlString(indentationLevel, true);

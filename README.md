@@ -1,8 +1,5 @@
 # Inject
 
-# TODO
-[ ] Add topological sorting for Injector YAML string output
-
 > To add
 
 # To refactor later

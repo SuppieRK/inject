@@ -36,6 +36,9 @@ import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Qualifier;
 import jakarta.inject.Singleton;
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
@@ -68,7 +71,7 @@ import java.util.stream.Collectors;
  *
  * <p>After instantiation, {@link IllegalStateException} can be thrown.
  */
-public final class Injector {
+public final class Injector implements Closeable {
   private static final String NULL_VALUE_TEMPLATE = "%s is null";
   private static final String DUPLICATE_VALUE_TEMPLATE = "Duplicate: %s";
   private static final String MISSING_VALUE_TEMPLATE = "Missing: %s";
@@ -159,6 +162,21 @@ public final class Injector {
    */
   public CopyBuilder copy() {
     return new CopyBuilder(this);
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void close() {
+    final var keys = topologicallySortedKeys(providers);
+
+    // Going in the reverse order to close dependencies
+    for (int i = keys.size() - 1; i >= 0; i--) {
+      try {
+        getNode(keys.get(i)).close();
+      } catch (IOException e) {
+        throw new UncheckedIOException("Failed to close dependency", e);
+      }
+    }
   }
 
   /** {@inheritDoc} */
@@ -264,6 +282,44 @@ public final class Injector {
     }
 
     /**
+     * Adds classes to the {@link Injector}.
+     *
+     * @param clazz to add
+     * @param additionalClasses to add
+     * @return current builder
+     */
+    public Builder add(Class<?> clazz, Class<?>... additionalClasses) {
+      addClass(clazz);
+
+      if (additionalClasses != null) {
+        for (Class<?> additionalClass : additionalClasses) {
+          addClass(additionalClass);
+        }
+      }
+
+      return this;
+    }
+
+    /**
+     * Adds plain objects to the {@link Injector}.
+     *
+     * @param object to add
+     * @param additionalObjects to add
+     * @return current builder
+     */
+    public Builder add(Object object, Object... additionalObjects) {
+      addObject(object);
+
+      if (additionalObjects != null) {
+        for (Object additionalObject : additionalObjects) {
+          addObject(additionalObject);
+        }
+      }
+
+      return this;
+    }
+
+    /**
      * Adds a class to the {@link Injector}.
      *
      * <p>Contains a special behavior to handle nested non-static classes - the default constructor
@@ -272,11 +328,10 @@ public final class Injector {
      * need to register their enclosing classes as providers as well.
      *
      * @param clazz to add
-     * @return current builder instance
      * @throws IllegalArgumentException if class is {@code null}, {@code abstract} or {@code
      *     interface}, as well as from any methods called by this method
      */
-    public Builder add(Class<?> clazz) {
+    private void addClass(Class<?> clazz) {
       if (clazz == null) {
         throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Class"));
       }
@@ -285,7 +340,7 @@ public final class Injector {
         throw new IllegalArgumentException(NON_INSTANTIABLE_CLASS_TEMPLATE);
       }
 
-      return synchronize(
+      synchronize(
           () -> {
             parseClassForGraph(clazz, false);
 
@@ -305,11 +360,10 @@ public final class Injector {
      * Adds a plain object instance to the {@link Injector}.
      *
      * @param value to add
-     * @return current builder instance
      * @throws IllegalArgumentException if the value is {@code null} or graph already contains this
      *     value
      */
-    public Builder add(Object value) {
+    private void addObject(Object value) {
       if (value == null) {
         throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Value"));
       }
@@ -317,7 +371,7 @@ public final class Injector {
       final var classKey =
           new Key<>(value.getClass(), getQualifierAnnotations(value.getClass().getAnnotations()));
 
-      return synchronize(
+      synchronize(
           () -> {
             if (providers.containsKey(classKey)) {
               throw new IllegalArgumentException(String.format(DUPLICATE_VALUE_TEMPLATE, classKey));
@@ -360,13 +414,7 @@ public final class Injector {
      *     method invocations
      */
     public <F, T extends F> CopyBuilder replace(Class<F> from, Class<T> to) {
-      if (from == null) {
-        throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "From"));
-      }
-
-      if (to == null) {
-        throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "To"));
-      }
+      checkArguments(from, to);
 
       if (from.equals(to)) {
         return this;
@@ -396,13 +444,7 @@ public final class Injector {
      *     method invocations
      */
     public <F, T extends F> CopyBuilder replace(F from, T to) {
-      if (from == null) {
-        throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "From"));
-      }
-
-      if (to == null) {
-        throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "To"));
-      }
+      checkArguments(from, to);
 
       if (from.equals(to)) {
         return this;
@@ -416,6 +458,22 @@ public final class Injector {
             providers.put(keys.getValue(), new Value<>(injectorReference, to));
             return this;
           });
+    }
+
+    /**
+     * Small shortcut to get rid of duplicate checks, providing named exceptions.
+     *
+     * @param from parameter to check
+     * @param to parameter to check
+     */
+    private void checkArguments(Object from, Object to) {
+      if (from == null) {
+        throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "From"));
+      }
+
+      if (to == null) {
+        throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "To"));
+      }
     }
 
     /**
@@ -540,9 +598,10 @@ public final class Injector {
           throw new IllegalArgumentException(NO_WRAPPER_EXPECTED_TEMPLATE);
         }
 
+        final var methodReturnClass = (Class<?>) methodReturnType;
         final var methodAnnotations = getQualifierAnnotations(providerMethod.getAnnotations());
-        final var methodKey = new Key<>((Class<?>) methodReturnType, methodAnnotations);
-        final var methodReturnTypeFields = getFields((Class<?>) methodReturnType);
+        final var methodKey = new Key<>(methodReturnClass, methodAnnotations);
+        final var methodReturnTypeFields = getFields(methodReturnClass);
 
         if (providers.containsKey(methodKey)) {
           throw new IllegalArgumentException(String.format(DUPLICATE_VALUE_TEMPLATE, classKey));
@@ -552,12 +611,13 @@ public final class Injector {
 
         Node<?> methodNode;
         if (providerMethod.isAnnotationPresent(Singleton.class)
-            || ((Class<?>) methodReturnType).isAnnotationPresent(Singleton.class)) {
+            || methodReturnClass.isAnnotationPresent(Singleton.class)) {
           methodNode =
               new ProvidesSingleton<>(
                   injectorReference,
                   classKey,
                   providerMethod,
+                  methodReturnClass,
                   methodParameters,
                   methodReturnTypeFields);
         } else {
@@ -566,6 +626,7 @@ public final class Injector {
                   injectorReference,
                   classKey,
                   providerMethod,
+                  methodReturnClass,
                   methodParameters,
                   methodReturnTypeFields);
         }

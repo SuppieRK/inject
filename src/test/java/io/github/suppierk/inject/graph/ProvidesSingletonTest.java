@@ -39,7 +39,7 @@ class ProvidesSingletonTest {
         .forClass(ProvidesSingleton.class)
         .withPrefabValues(Injector.class, redInjector, blueInjector)
         .withPrefabValues(Parameter.class, redParameter, blueParameter)
-        .withIgnoredFields("injectorReference", "memoized")
+        .withIgnoredFields("injectorReference", "memoized", "onCloseConsumer")
         .verify();
   }
 }

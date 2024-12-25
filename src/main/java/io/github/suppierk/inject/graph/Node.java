@@ -27,8 +27,11 @@ import io.github.suppierk.inject.Injector;
 import io.github.suppierk.inject.InjectorReference;
 import io.github.suppierk.inject.Key;
 import jakarta.inject.Provider;
+import java.io.Closeable;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -36,7 +39,9 @@ import java.util.function.Supplier;
  *
  * @param <T> is the type of the instance this node refers to
  */
-public abstract class Node<T> implements Provider<T>, Supplier<T> {
+public abstract class Node<T> implements Provider<T>, Supplier<T>, Closeable {
+  private static final Consumer<?> EMPTY_CONSUMER = t -> {};
+
   private final InjectorReference injectorReference;
   private final Set<Key<?>> parentKeys;
 
@@ -89,6 +94,7 @@ public abstract class Node<T> implements Provider<T>, Supplier<T> {
    */
   public abstract String toYamlString(int indentationLevel);
 
+  /** {@inheritDoc} */
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof Node)) return false;
@@ -96,8 +102,44 @@ public abstract class Node<T> implements Provider<T>, Supplier<T> {
     return Objects.equals(parentKeys, that.parentKeys);
   }
 
+  /** {@inheritDoc} */
   @Override
   public int hashCode() {
     return Objects.hash(parentKeys);
+  }
+
+  /**
+   * Similar to {@link Optional#empty()} but for {@link Consumer}.
+   *
+   * @return empty {@link Consumer}
+   * @param <C> is the type of the consumed object
+   */
+  protected static <C> Consumer<C> emptyConsumer() {
+    @SuppressWarnings("unchecked")
+    Consumer<C> emptyConsumer = (Consumer<C>) EMPTY_CONSUMER;
+    return emptyConsumer;
+  }
+
+  /**
+   * Identify default behavior to clean up resources for the given class.
+   *
+   * <p><b>NOTE</b>: {@link Closeable} extends {@link AutoCloseable}.
+   *
+   * @param clazz to identify behavior for
+   * @return {@link Consumer} to handle resource clean up
+   * @param <T> is the type of the potentially {@link AutoCloseable} resource
+   */
+  protected static <T> Consumer<T> createOnCloseConsumer(Class<T> clazz) {
+    if (AutoCloseable.class.isAssignableFrom(clazz)) {
+      return resource -> {
+        try {
+          ((AutoCloseable) resource).close();
+        } catch (Exception e) {
+          throw new IllegalStateException("Could not close resource", e);
+        }
+      };
+    }
+
+    return emptyConsumer();
   }
 }
