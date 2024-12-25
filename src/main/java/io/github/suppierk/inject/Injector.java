@@ -174,7 +174,7 @@ public final class Injector implements Closeable {
       try {
         getNode(keys.get(i)).close();
       } catch (IOException e) {
-        throw new UncheckedIOException("Failed to close dependency", e);
+        throw new UncheckedIOException("Failed to close dependency: " + keys.get(i), e);
       }
     }
   }
