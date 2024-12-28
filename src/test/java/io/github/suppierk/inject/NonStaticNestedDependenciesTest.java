@@ -23,6 +23,42 @@ import org.junit.jupiter.api.Test;
 class NonStaticNestedDependenciesTest {
 
   @Nested
+  class AdjustingDependencyInMethodsTest {
+    class Original {
+      @Provides
+      @Named("original")
+      String original() {
+        return "original";
+      }
+
+      @Provides
+      @Named("adjusted")
+      String adjusted(@Named("original") String original) {
+        return original + "Adjusted";
+      }
+    }
+
+    class Consumer {
+      private final String result;
+
+      @Inject
+      Consumer(@Named("adjusted") String adjusted) {
+        this.result = adjusted;
+      }
+    }
+
+    @Test
+    void adjusting_module_should_participate_in_creation_chain() {
+      final var builder = Injector.injector();
+      assertDoesNotThrow(() -> builder.add(Original.class));
+      assertDoesNotThrow(() -> builder.add(Consumer.class));
+      final var injector = assertDoesNotThrow(builder::build);
+
+      assertEquals("originalAdjusted", injector.get(Consumer.class).result);
+    }
+  }
+
+  @Nested
   class AdjustingDependencyTest {
     class Original {
       @Provides
