@@ -5,9 +5,9 @@
 >
 > I maintain this project alone and as much or as little as my **spare time** permits using my **personal** equipment.
 
-Small dependency injection library for Java supporting reflection-based objects creation (aka
-a [factory pattern](https://en.wikipedia.org/wiki/Factory_method_pattern)) using slightly
-extended [JSR 330](https://jcp.org/en/jsr/detail?id=330) specification provided
+Small [dependency injection](https://en.wikipedia.org/wiki/Dependency_injection) library for Java supporting 
+reflection-based objects creation (aka a [factory pattern](https://en.wikipedia.org/wiki/Factory_method_pattern)) using 
+slightly extended [JSR 330](https://jcp.org/en/jsr/detail?id=330) specification provided
 by [Jakarta Inject library](https://mvnrepository.com/artifact/jakarta.inject/jakarta.inject-api).
 
 The main goal of this library is to provide the most obvious path to register and reuse dependencies in your code, which
