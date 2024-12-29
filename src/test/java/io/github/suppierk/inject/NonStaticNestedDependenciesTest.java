@@ -954,6 +954,52 @@ class NonStaticNestedDependenciesTest {
   }
 
   @Nested
+  class InjectQualifiedClassAsSuperclassTest {
+    @Named("testA")
+    class A implements Runnable {
+      private final long id;
+
+      A() {
+        this.id = System.nanoTime();
+      }
+
+      @Override
+      public void run() {
+        // Do nothing
+      }
+    }
+
+    class Provider {
+      @Provides
+      Runnable a() {
+        return new A();
+      }
+    }
+
+    class C implements Runnable {
+      private final Runnable r;
+
+      @Inject
+      C(@Named("testA") Runnable r) {
+        this.r = r;
+      }
+
+      @Override
+      public void run() {
+        r.run();
+      }
+    }
+
+    @Test
+    void must_fail_to_inject_dependency() {
+      final var builder = Injector.injector();
+      assertDoesNotThrow(() -> builder.add(Provider.class));
+      assertDoesNotThrow(() -> builder.add(C.class));
+      assertThrows(IllegalArgumentException.class, builder::build);
+    }
+  }
+
+  @Nested
   class InjectSingletonInConstructorTest {
     @Singleton
     class A {
