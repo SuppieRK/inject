@@ -25,6 +25,13 @@ The command typically used to build the project is:
 ./gradlew clean spotlessApply build
 ```
 
+It doesn't hurt to go extra mile and ensure that your code is properly covered with tests by running mutation tests
+using:
+
+```shell
+./gradlew clean spotlessApply build pitest
+```
+
 > It is highly recommended to run this command before submitting a Pull Request to comply with code formatting rules.
 
 * [Official Gradle documentation](https://docs.gradle.org)
