@@ -86,11 +86,3 @@ public class HelloWorld {
 
 - Visit our [Wiki](https://github.com/SuppieRK/inject/wiki) for more in-depth look at the features.
 - Take a look at the complete stack proposal in [JIQS](https://github.com/SuppieRK/jiqs) repository.
-
-# To refactor later
-
-- Fetching / injecting a collection of dependencies
-    - Excluded - the reason is the lack of control over dependencies from programmer
-
-- Inject dependencies to class instance (through fields)
-    - Discarded - if you have an injector instance, you can fetch instances from it
