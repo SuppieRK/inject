@@ -27,13 +27,12 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.suppierk.inject.Injector;
+import io.github.suppierk.inject.Provides;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
-import jakarta.inject.Singleton;
 import org.junit.jupiter.api.Test;
 
 class InjectQualifiedClassAsSuperclassTest {
-  @Singleton
   @Named("testA")
   static class A implements Runnable {
     private final long id;
@@ -45,6 +44,13 @@ class InjectQualifiedClassAsSuperclassTest {
     @Override
     public void run() {
       // Do nothing
+    }
+  }
+
+  static class Provider {
+    @Provides
+    Runnable a() {
+      return new A();
     }
   }
 
@@ -65,7 +71,7 @@ class InjectQualifiedClassAsSuperclassTest {
   @Test
   void must_fail_to_inject_dependency() {
     final var builder = Injector.injector();
-    assertDoesNotThrow(() -> builder.add(A.class));
+    assertDoesNotThrow(() -> builder.add(Provider.class));
     assertDoesNotThrow(() -> builder.add(C.class));
     assertThrows(IllegalArgumentException.class, builder::build);
   }
