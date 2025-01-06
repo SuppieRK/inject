@@ -101,6 +101,15 @@ public class ConstructsNew<T> extends ReflectionNode<T> {
     return super.equals(o);
   }
 
+  /**
+   * Constructor hash code leverages constant class name, not parameters - we use parameters in
+   * superclass.
+   */
+  @Override
+  public int hashCode() {
+    return super.hashCode();
+  }
+
   /** {@inheritDoc} */
   @Override
   public String toString() {

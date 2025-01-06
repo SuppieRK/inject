@@ -84,6 +84,12 @@ public final class RefersTo<T> extends Node<T> {
 
   /** {@inheritDoc} */
   @Override
+  public int hashCode() {
+    return super.hashCode();
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public String toString() {
     return String.format("%s(%s)", getClass().getSimpleName(), parentKeys().iterator().next());
   }

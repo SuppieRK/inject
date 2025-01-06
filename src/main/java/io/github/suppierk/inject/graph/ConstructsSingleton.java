@@ -114,6 +114,12 @@ public final class ConstructsSingleton<T> extends ConstructsNew<T> {
 
   /** {@inheritDoc} */
   @Override
+  public int hashCode() {
+    return super.hashCode();
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public String toYamlString(int indentationLevel) {
     return toYamlString(indentationLevel, true);
   }

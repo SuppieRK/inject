@@ -135,6 +135,12 @@ public final class ProvidesSingleton<T> extends ProvidesNew<T> {
 
   /** {@inheritDoc} */
   @Override
+  public int hashCode() {
+    return super.hashCode();
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public String toYamlString(int indentationLevel) {
     return toYamlString(indentationLevel, true);
   }
