@@ -30,6 +30,7 @@ import io.github.suppierk.inject.Provides;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class DeclareFactoryTest {
   static class ValueProvider {
     @Provides

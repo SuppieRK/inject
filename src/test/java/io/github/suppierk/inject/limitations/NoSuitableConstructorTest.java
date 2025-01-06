@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import io.github.suppierk.inject.Injector;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class NoSuitableConstructorTest {
   static class Consumer {
     private final String value;

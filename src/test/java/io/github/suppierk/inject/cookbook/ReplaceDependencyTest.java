@@ -30,6 +30,7 @@ import io.github.suppierk.inject.Provides;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class ReplaceDependencyTest {
   static class Configuration {
     private final String value;

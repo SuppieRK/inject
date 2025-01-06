@@ -32,6 +32,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class FactorySingletonProviderTest {
   static class DependencyFactory {
     @Provides

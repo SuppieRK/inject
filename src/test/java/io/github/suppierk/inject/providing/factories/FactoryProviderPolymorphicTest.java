@@ -27,13 +27,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.suppierk.inject.Injector;
 import io.github.suppierk.inject.Provides;
+import io.github.suppierk.mocks.Polymorphic;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class FactoryProviderPolymorphicTest {
-  interface Polymorphic {
-    String getValue();
-  }
-
   static class FirstDescendant implements Polymorphic {
     private final Long value;
 

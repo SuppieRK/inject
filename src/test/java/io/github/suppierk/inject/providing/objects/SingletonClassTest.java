@@ -32,6 +32,7 @@ import jakarta.inject.Singleton;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class SingletonClassTest {
   @Singleton
   static class Value {

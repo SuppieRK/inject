@@ -26,23 +26,12 @@ repositories {
 	mavenCentral()
 }
 
-// Centralized dependency versions definition
-ext {
-	set('jakartaVersion', '2.0.1')
-
-	set('jUnitVersion', '5.11.4')
-	set('equalsVerifierVersion', '3.17.5')
-}
-
 dependencies {
 	// https://mvnrepository.com/artifact/jakarta.inject/jakarta.inject-api
 	api group: 'jakarta.inject', name: 'jakarta.inject-api', version: jakartaVersion
 
-	// https://mvnrepository.com/artifact/org.junit/junit-bom
-	testImplementation enforcedPlatform(group: 'org.junit', name: 'junit-bom', version: jUnitVersion)
-
 	// https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter
-	testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter'
+	testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter', version: jUnitVersion
 
 	// https://mvnrepository.com/artifact/nl.jqno.equalsverifier/equalsverifier-nodep
 	testImplementation group: 'nl.jqno.equalsverifier', name: 'equalsverifier-nodep', version: equalsVerifierVersion
@@ -53,6 +42,7 @@ test {
 }
 
 java {
+	// Aligned with the version of Java Jakarta dependency is built with
 	def version = JavaVersion.VERSION_11
 
 	sourceCompatibility = version.toString()

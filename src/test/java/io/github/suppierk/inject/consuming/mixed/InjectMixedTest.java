@@ -33,6 +33,7 @@ import jakarta.inject.Named;
 import jakarta.inject.Provider;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class InjectMixedTest {
   static class SimpleField {
     @Provides

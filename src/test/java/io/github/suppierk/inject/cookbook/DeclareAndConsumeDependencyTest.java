@@ -29,6 +29,7 @@ import io.github.suppierk.inject.Injector;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class DeclareAndConsumeDependencyTest {
   static class Value {
     private final long time;

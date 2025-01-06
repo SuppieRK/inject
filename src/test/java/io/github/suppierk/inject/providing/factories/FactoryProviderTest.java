@@ -31,6 +31,7 @@ import io.github.suppierk.inject.Provides;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class FactoryProviderTest {
   static class DependencyFactory {
     @Provides

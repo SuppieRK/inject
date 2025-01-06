@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class NoCollectionProviderTest {
   static class DependencyFactory {
     @Provides

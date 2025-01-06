@@ -33,6 +33,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class CustomQualifierTest {
   static class DependencyFactory {
     @Provides

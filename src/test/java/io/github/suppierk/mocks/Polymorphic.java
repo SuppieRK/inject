@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright 2024 Roman Khlebnov
+ * Copyright 2025 Roman Khlebnov
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the “Software”), to deal in the Software without
@@ -21,50 +21,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package io.github.suppierk.inject.cookbook;
+package io.github.suppierk.mocks;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import io.github.suppierk.inject.Injector;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
-import org.junit.jupiter.api.Test;
-
-@SuppressWarnings("unused")
-class DeclareAndConsumeSingletonDependencyTest {
-  @Singleton
-  static class Value {
-    private final long time;
-
-    Value() {
-      this.time = System.nanoTime();
-    }
-
-    public long time() {
-      return time;
-    }
-  }
-
-  static class Consumer {
-    private final Value value;
-
-    @Inject
-    public Consumer(Value value) {
-      this.value = value;
-    }
-
-    public long get() {
-      return value.time();
-    }
-  }
-
-  @Test
-  void exampleMustWorkAsExpected() {
-    final Injector injector = Injector.injector().add(Value.class).add(Consumer.class).build();
-
-    assertEquals(
-        injector.get(Consumer.class).get(),
-        injector.get(Consumer.class).get(),
-        "Because injected values are the same they must be equal");
-  }
+/** Interface for tests exploring polymorphic behavior. */
+public interface Polymorphic {
+  String getValue();
 }

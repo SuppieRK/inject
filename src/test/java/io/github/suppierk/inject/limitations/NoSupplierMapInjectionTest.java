@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class NoSupplierMapInjectionTest {
   static class Consumer {
     private final Supplier<Map<String, String>> strings;

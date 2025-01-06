@@ -7,6 +7,7 @@ import io.github.suppierk.inject.Provides;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class NoMapProviderTest {
   static class DependencyFactory {
     @Provides

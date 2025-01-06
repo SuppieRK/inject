@@ -25,8 +25,8 @@ import org.junit.jupiter.api.Test;
 @SuppressWarnings("unused")
 class ProvidesNewTest {
   static class Value {
-    String first;
-    Long second;
+    final String first;
+    final Long second;
 
     Value(String first, Long second) {
       this.first = first;

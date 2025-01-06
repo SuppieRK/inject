@@ -7,6 +7,7 @@ import jakarta.inject.Inject;
 import java.util.Collection;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class NoCollectionInjectionInFieldTest {
   static class Consumer {
     @Inject private Collection<String> strings;

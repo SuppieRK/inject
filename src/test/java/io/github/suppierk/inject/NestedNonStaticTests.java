@@ -30,9 +30,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.suppierk.inject.providing.factories.FactoryProviderPolymorphicNamedTest.Polymorphic;
 import io.github.suppierk.mocks.CustomQualifier;
 import io.github.suppierk.mocks.NanoTimeValue;
+import io.github.suppierk.mocks.Polymorphic;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Provider;
@@ -44,6 +44,7 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class NestedNonStaticTests {
   @Nested
   class Consuming {

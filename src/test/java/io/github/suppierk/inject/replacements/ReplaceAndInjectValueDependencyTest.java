@@ -31,6 +31,7 @@ import io.github.suppierk.mocks.NanoTimeValue;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class ReplaceAndInjectValueDependencyTest {
   static class OriginalNanoTimeValue extends NanoTimeValue {
     public OriginalNanoTimeValue() {

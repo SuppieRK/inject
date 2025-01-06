@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class SingletonClosureTest {
   static final AtomicLong SINGLETON_CLOSED_AT = new AtomicLong(Long.MIN_VALUE);
   static final AtomicLong CLOSED_AT = new AtomicLong(Long.MIN_VALUE);

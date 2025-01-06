@@ -29,6 +29,7 @@ import io.github.suppierk.inject.Injector;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class DefaultAndInjectConstructorsTest {
   static class Consumer {
     private final String value;

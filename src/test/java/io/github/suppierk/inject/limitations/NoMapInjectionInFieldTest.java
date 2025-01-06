@@ -7,6 +7,7 @@ import jakarta.inject.Inject;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class NoMapInjectionInFieldTest {
   static class Consumer {
     @Inject private Map<String, String> strings;

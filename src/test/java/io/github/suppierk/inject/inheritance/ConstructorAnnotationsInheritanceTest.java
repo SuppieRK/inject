@@ -30,6 +30,7 @@ import io.github.suppierk.inject.Injector;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class ConstructorAnnotationsInheritanceTest {
   static class ParentConsumer {
     private final Long value;

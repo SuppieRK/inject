@@ -32,6 +32,7 @@ import io.github.suppierk.mocks.NanoTimeValue;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class ReplaceAndInjectInConstructorTest {
   static class OriginalDependencyFactory {
     @Provides

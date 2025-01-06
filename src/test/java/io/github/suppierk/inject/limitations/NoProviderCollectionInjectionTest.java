@@ -8,6 +8,7 @@ import jakarta.inject.Provider;
 import java.util.Collection;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class NoProviderCollectionInjectionTest {
   static class Consumer {
     private final Provider<Collection<String>> strings;

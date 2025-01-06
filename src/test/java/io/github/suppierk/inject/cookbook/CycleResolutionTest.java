@@ -32,6 +32,7 @@ import jakarta.inject.Provider;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class CycleResolutionTest {
   static class Hello implements Supplier<String> {
     private final World world;

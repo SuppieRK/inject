@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class NoSupplierCollectionInjectionTest {
   static class Consumer {
     private final Supplier<Collection<String>> strings;

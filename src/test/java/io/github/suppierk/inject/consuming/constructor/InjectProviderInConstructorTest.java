@@ -32,6 +32,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class InjectProviderInConstructorTest {
   static class Consumer {
     private final NanoTimeValue value;

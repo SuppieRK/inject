@@ -31,6 +31,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class CycleBreakWithProviderTest {
   static class First {
     final Second second;
