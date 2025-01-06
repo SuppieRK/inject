@@ -56,9 +56,12 @@ class DeclareAndConsumeDependencyTest {
   }
 
   @Test
-  void example_must_work_as_expected() {
+  void exampleMustWorkAsExpected() {
     final Injector injector = Injector.injector().add(Value.class).add(Consumer.class).build();
 
-    assertNotEquals(injector.get(Consumer.class).get(), injector.get(Consumer.class).get());
+    assertNotEquals(
+        injector.get(Consumer.class).get(),
+        injector.get(Consumer.class).get(),
+        "Because injected values are not singletons they must be different");
   }
 }

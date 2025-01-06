@@ -5,8 +5,8 @@
 >
 > I maintain this project alone and as much or as little as my **spare time** permits using my **personal** equipment.
 
-Small [dependency injection](https://en.wikipedia.org/wiki/Dependency_injection) library for Java supporting 
-reflection-based objects creation (aka a [factory pattern](https://en.wikipedia.org/wiki/Factory_method_pattern)) using 
+Small [dependency injection](https://en.wikipedia.org/wiki/Dependency_injection) library for Java supporting
+reflection-based objects creation (aka a [factory pattern](https://en.wikipedia.org/wiki/Factory_method_pattern)) using
 slightly extended [JSR 330](https://jcp.org/en/jsr/detail?id=330) specification provided
 by [Jakarta Inject library](https://mvnrepository.com/artifact/jakarta.inject/jakarta.inject-api).
 
@@ -31,14 +31,14 @@ methods outputs should be exposed to other classes.
 <dependency>
     <groupId>io.github.suppierk</groupId>
     <artifactId>inject</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
 </dependency>
 ```
 
 - **Gradle** (_works for both Groovy and Kotlin_)
 
 ```groovy
-implementation("io.github.suppierk:inject:1.1.0")
+implementation("io.github.suppierk:inject:1.1.1")
 ```
 
 [![SonarCloud](https://sonarcloud.io/images/project_badges/sonarcloud-orange.svg)](https://sonarcloud.io/summary/overall?id=SuppieRK_inject)
@@ -81,6 +81,11 @@ public class HelloWorld {
     }
 }
 ```
+
+## Known problems
+
+- Do not invoke `Provider.get()` or `Supplier.get()` in the constructor of the object which is a part of the dependency
+  cycle - this will result in an infinite instantiation loop and will cause your program to become stuck.
 
 ## More examples
 

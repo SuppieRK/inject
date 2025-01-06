@@ -21,20 +21,20 @@ import org.junit.jupiter.api.Test;
 
 class KeyTest {
   @Test
-  void object_methods_must_work_as_expected() {
+  void objectMethodsMustWorkAsExpected() {
     EqualsVerifier.forClass(Key.class).verify();
   }
 
   @Test
-  void to_string_must_not_be_null() {
+  void toStringMustNotBeNull() {
     final var key = new Key<>(String.class, null);
 
-    assertNotNull(key.toString());
-    assertFalse(key.toString().isEmpty());
+    assertNotNull(key.toString(), "String must not be null");
+    assertFalse(key.toString().isBlank(), "String must not be blank");
   }
 
   @Test
-  void to_yaml_string_must_not_be_null() {
+  void toYamlStringMustNotBeNull() {
     final var expectedYaml =
         Stream.of("type: " + ConsoleConstants.cyanBold(String.class.getName()), "annotations: [ ]")
             .collect(Collectors.joining(String.format("%n")));
@@ -42,12 +42,11 @@ class KeyTest {
     final var key = new Key<>(String.class, null);
     final var actualYaml = key.toYamlString(false, 0);
 
-    assertNotNull(actualYaml);
-    assertEquals(expectedYaml, actualYaml);
+    assertEquals(expectedYaml, actualYaml, "YAML string must match the expectation");
   }
 
   @Test
-  void to_yaml_string_annotation_test() {
+  void toYamlStringAnnotationTest() {
     final var expectedYaml =
         Stream.of(
                 "type: " + ConsoleConstants.cyanBold(String.class.getName()),
@@ -62,12 +61,11 @@ class KeyTest {
     final var key = new Key<>(String.class, Set.of(qualifier));
     final var actualYaml = key.toYamlString(false, 0);
 
-    assertNotNull(actualYaml);
-    assertEquals(expectedYaml, actualYaml);
+    assertEquals(expectedYaml, actualYaml, "YAML string must match the expectation");
   }
 
   @Test
-  void to_yaml_string_indentation_test() {
+  void toYamlStringIndentationTest() {
     final var expectedYaml =
         Stream.of(
                 "  type: " + ConsoleConstants.cyanBold(String.class.getName()),
@@ -77,19 +75,21 @@ class KeyTest {
     final var key = new Key<>(String.class, null);
     final var actualYaml = key.toYamlString(false, 1);
 
-    assertNotNull(actualYaml);
-    assertEquals(expectedYaml, actualYaml);
+    assertEquals(expectedYaml, actualYaml, "YAML string must match the expectation");
   }
 
   @Test
-  void to_yaml_string_negative_indentation_test() {
+  void toYamlStringNegativeIndentationTest() {
     final var key = new Key<>(String.class, null);
 
-    assertThrows(IllegalArgumentException.class, () -> key.toYamlString(false, -1));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> key.toYamlString(false, -1),
+        "Negative YAML indentation must throw an exception");
   }
 
   @Test
-  void to_yaml_string_itemize_test() {
+  void toYamlStringItemizeTest() {
     final var expectedYaml =
         Stream.of(
                 "- type: " + ConsoleConstants.cyanBold(String.class.getName()),
@@ -99,12 +99,11 @@ class KeyTest {
     final var key = new Key<>(String.class, null);
     final var actualYaml = key.toYamlString(true, 0);
 
-    assertNotNull(actualYaml);
-    assertEquals(expectedYaml, actualYaml);
+    assertEquals(expectedYaml, actualYaml, "YAML string must match the expectation");
   }
 
   @Test
-  void to_yaml_string_itemize_and_indentation_test() {
+  void toYamlStringItemizeAndIndentationTest() {
     final var expectedYaml =
         Stream.of(
                 "  - type: " + ConsoleConstants.cyanBold(String.class.getName()),
@@ -114,19 +113,21 @@ class KeyTest {
     final var key = new Key<>(String.class, null);
     final var actualYaml = key.toYamlString(true, 1);
 
-    assertNotNull(actualYaml);
-    assertEquals(expectedYaml, actualYaml);
+    assertEquals(expectedYaml, actualYaml, "YAML string must match the expectation");
   }
 
   @Nested
   class ClassBased {
     @Test
-    void constructor_fails_for_null_class() {
-      assertThrows(IllegalArgumentException.class, () -> new Key<>(null, null));
+    void constructorFailsForNullClass() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new Key<>(null, null),
+          "Null class must throw an exception");
     }
 
     @Test
-    void constructor_for_class_must_work_as_expected() {
+    void constructorForClassMustWorkAsExpected() {
       final var clazz = String.class;
 
       final var key = new Key<>(clazz, null);
@@ -147,12 +148,15 @@ class KeyTest {
   @NotQualifier(customValue = "notQualifierCustomValue")
   class NotQualifierAnnotation {
     @Test
-    void constructor_must_throw_expected_exception() {
+    void constructorMustThrowExpectedException() {
       final var clazz = NotQualifierAnnotation.class;
       final var named = clazz.getAnnotation(NotQualifier.class);
       final var annotations = Set.<Annotation>of(named);
 
-      assertThrows(IllegalArgumentException.class, () -> new Key<>(clazz, annotations));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new Key<>(clazz, annotations),
+          "Non Qualifier annotations must throw an exception");
     }
   }
 
@@ -160,7 +164,7 @@ class KeyTest {
   @Named("NamedAnnotation")
   class NamedAnnotation {
     @Test
-    void constructor_must_work_as_expected() {
+    void constructorMustWorkAsExpected() {
       final var clazz = NamedAnnotation.class;
       final var qualifier = clazz.getAnnotation(Named.class);
 
@@ -185,7 +189,7 @@ class KeyTest {
   @CustomQualifier(customValue = "CustomQualifierAnnotation123", customIntValue = 123)
   class CustomQualifierAnnotation {
     @Test
-    void constructor_must_work_as_expected() {
+    void constructorMustWorkAsExpected() {
       final var clazz = CustomQualifierAnnotation.class;
       final var qualifier = clazz.getAnnotation(CustomQualifier.class);
 
@@ -203,7 +207,7 @@ class KeyTest {
   @CustomQualifier(customValue = "MultipleQualifierAnnotations456", customIntValue = 456)
   class MultipleQualifierAnnotations {
     @Test
-    void constructor_must_work_as_expected() {
+    void constructorMustWorkAsExpected() {
       final var clazz = MultipleQualifierAnnotations.class;
       final var firstQualifier = clazz.getAnnotation(Named.class);
       final var secondQualifier = clazz.getAnnotation(CustomQualifier.class);

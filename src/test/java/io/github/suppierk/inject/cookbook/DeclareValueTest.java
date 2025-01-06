@@ -44,11 +44,14 @@ class DeclareValueTest {
   }
 
   @Test
-  void example_must_work_as_expected() {
+  void exampleMustWorkAsExpected() {
     final Long value = 42L;
 
     final Injector injector = Injector.injector().add(value).add(Consumer.class).build();
 
-    assertEquals(injector.get(Consumer.class).get(), injector.get(Consumer.class).get());
+    assertEquals(
+        injector.get(Consumer.class).get(),
+        injector.get(Consumer.class).get(),
+        "Because we inject plain value it must remain the same");
   }
 }

@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 class RefersToTest {
   @Test
-  void object_methods_must_work_as_expected() {
+  void objectMethodsMustWorkAsExpected() {
     final var redInjector = Injector.injector().add("Red").build();
     final var blueInjector = Injector.injector().add("Blue").build();
 
@@ -31,16 +31,22 @@ class RefersToTest {
   }
 
   @Test
-  void null_constructor_argument_throws_exception() {
+  void nullConstructorArgumentThrowsException() {
     final var injectorReference = new InjectorReference();
     final var parentQualifier = new Key<>(String.class, Set.of());
 
-    assertThrows(IllegalArgumentException.class, () -> new RefersTo<>(injectorReference, null));
-    assertThrows(IllegalArgumentException.class, () -> new RefersTo<>(null, parentQualifier));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new RefersTo<>(injectorReference, null),
+        "Null parent key must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new RefersTo<>(null, parentQualifier),
+        "Null injector reference must throw an exception");
   }
 
   @Test
-  void throws_no_such_element_if_reference_not_found() {
+  void throwsNoSuchElementIfReferenceNotFound() {
     final var injector = Injector.injector().build();
     final var parentQualifier = new Key<>(String.class, Set.of());
 
@@ -48,11 +54,14 @@ class RefersToTest {
     injectorReference.set(injector);
 
     final var node = new RefersTo<>(injectorReference, parentQualifier);
-    assertThrows(NoSuchElementException.class, node::get);
+    assertThrows(
+        NoSuchElementException.class,
+        node::get,
+        "When reference not found the exception must be thrown");
   }
 
   @Test
-  void copy_test() {
+  void copyTest() {
     final var injector = Injector.injector().build();
     final var parentQualifier = new Key<>(String.class, Set.of());
 
@@ -62,13 +71,13 @@ class RefersToTest {
     final var original = new RefersTo<>(injectorReference, parentQualifier);
     final var copy = original.copy(injectorReference);
 
-    assertNotNull(copy);
-    assertEquals(original, copy);
-    assertNotSame(original, copy);
+    assertNotNull(copy, "Copy must not be null");
+    assertEquals(original, copy, "Copy must be equal to original");
+    assertNotSame(original, copy, "Copy must not be the same as original");
   }
 
   @Test
-  void to_string_must_be_non_null() {
+  void toStringMustBeNonNull() {
     final var injector = Injector.injector().build();
     final var parentQualifier = new Key<>(String.class, Set.of());
 
@@ -77,12 +86,12 @@ class RefersToTest {
 
     final var original = new RefersTo<>(injectorReference, parentQualifier);
 
-    assertNotNull(original.toString());
-    assertFalse(original.toString().isBlank());
+    assertNotNull(original.toString(), "String must not be null");
+    assertFalse(original.toString().isBlank(), "String must not be blank");
   }
 
   @Test
-  void to_yaml_string_must_be_non_null() {
+  void toYamlStringMustBeNonNull() {
     final var expectedYaml =
         Stream.of(
                 "references:",
@@ -98,11 +107,11 @@ class RefersToTest {
 
     final var original = new RefersTo<>(injectorReference, parentQualifier);
 
-    assertEquals(expectedYaml, original.toYamlString(0));
+    assertEquals(expectedYaml, original.toYamlString(0), "YAML string must match the expectation");
   }
 
   @Test
-  void to_yaml_string_must_support_indentation() {
+  void toYamlStringMustSupportIndentation() {
     final var expectedYaml =
         Stream.of(
                 "  references:",
@@ -118,6 +127,6 @@ class RefersToTest {
 
     final var original = new RefersTo<>(injectorReference, parentQualifier);
 
-    assertEquals(expectedYaml, original.toYamlString(1));
+    assertEquals(expectedYaml, original.toYamlString(1), "YAML string must match the expectation");
   }
 }

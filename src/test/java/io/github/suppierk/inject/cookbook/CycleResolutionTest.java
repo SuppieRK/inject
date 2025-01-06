@@ -70,10 +70,16 @@ class CycleResolutionTest {
   }
 
   @Test
-  void example_must_work_as_expected() {
+  void exampleMustWorkAsExpected() {
     final Injector injector = Injector.injector().add(Hello.class).add(World.class).build();
 
-    assertNotEquals(injector.get(Hello.class).get(), injector.get(World.class).get());
-    assertEquals(injector.get(Hello.class).getComplete(), injector.get(World.class).getComplete());
+    assertNotEquals(
+        injector.get(Hello.class).get(),
+        injector.get(World.class).get(),
+        "get values must be different");
+    assertEquals(
+        injector.get(Hello.class).getComplete(),
+        injector.get(World.class).getComplete(),
+        "getComplete values must be equal");
   }
 }

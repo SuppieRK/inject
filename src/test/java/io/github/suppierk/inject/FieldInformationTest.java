@@ -1,6 +1,7 @@
 package io.github.suppierk.inject;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -10,31 +11,37 @@ import org.junit.jupiter.api.Test;
 
 class FieldInformationTest {
   @Test
-  void object_methods_must_work_as_expected() {
+  void objectMethodsMustWorkAsExpected() {
     EqualsVerifier.forClass(FieldInformation.class).verify();
   }
 
   @Test
-  void nulls_are_not_allowed_for_certain_fields() {
+  void nullsAreNotAllowedForCertainFields() {
     final var field = FieldInformation.class.getDeclaredFields()[0];
     final var qualifierKey = new Key<>(Object.class, null);
     final var wrapper = Provider.class;
 
-    assertDoesNotThrow(() -> new FieldInformation(field, qualifierKey, wrapper));
     assertThrows(
-        IllegalArgumentException.class, () -> new FieldInformation(null, qualifierKey, wrapper));
-    assertThrows(IllegalArgumentException.class, () -> new FieldInformation(field, null, wrapper));
-    assertDoesNotThrow(() -> new FieldInformation(field, qualifierKey, null));
+        IllegalArgumentException.class,
+        () -> new FieldInformation(null, qualifierKey, wrapper),
+        "Null field must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new FieldInformation(field, null, wrapper),
+        "Null qualifier key must throw an exception");
+    assertDoesNotThrow(
+        () -> new FieldInformation(field, qualifierKey, null),
+        "Null wrapper must throw an exception");
   }
 
   @Test
-  void toString_returns_non_null() {
+  void toStringReturnsNonNull() {
     final var field = FieldInformation.class.getDeclaredFields()[0];
     final var qualifierKey = new Key<>(Object.class, null);
     final var wrapper = Provider.class;
 
-    final var instance =
-        assertDoesNotThrow(() -> new FieldInformation(field, qualifierKey, wrapper));
-    assertNotNull(instance.toString());
+    final var instance = new FieldInformation(field, qualifierKey, wrapper);
+    assertNotNull(instance.toString(), "String must not be null");
+    assertFalse(instance.toString().isBlank(), "String must not be blank");
   }
 }

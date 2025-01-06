@@ -7,16 +7,22 @@ import org.junit.jupiter.api.Test;
 
 class InjectorReferenceTest {
   @Test
-  void null_cannot_be_set() {
+  void nullCannotBeSet() {
     final var reference = new InjectorReference();
-    assertThrows(IllegalStateException.class, () -> reference.set(null));
+    assertThrows(
+        IllegalStateException.class,
+        () -> reference.set(null),
+        "Null value must throw an exception");
   }
 
   @Test
-  void null_cannot_be_returned() {
+  void nullCannotBeReturned() {
     final var reference = new InjectorReference();
     final var qualifier = new Key<>(String.class, Set.of());
 
-    assertThrows(IllegalStateException.class, () -> reference.getNode(qualifier));
+    assertThrows(
+        IllegalStateException.class,
+        () -> reference.getNode(qualifier),
+        "Null value returned must throw an exception");
   }
 }

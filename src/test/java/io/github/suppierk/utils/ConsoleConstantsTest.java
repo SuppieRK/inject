@@ -31,38 +31,53 @@ import org.junit.jupiter.api.Test;
 
 class ConsoleConstantsTest {
   @Test
-  void indent_should_not_accept_negative_value() {
-    assertThrows(IllegalArgumentException.class, () -> ConsoleConstants.indent(-1));
+  void indentShouldNotAcceptNegativeValue() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> ConsoleConstants.indent(-1),
+        "Negative indent must throw an exception");
   }
 
   @Test
-  void zero_indent_must_be_an_empty_string() {
-    assertEquals(ConsoleConstants.EMPTY, ConsoleConstants.indent(0));
+  void zeroIndentMustBeAnEmptyString() {
+    assertEquals(
+        ConsoleConstants.EMPTY,
+        ConsoleConstants.indent(0),
+        "Zero indent must return an empty string");
   }
 
   @Test
-  void multiple_indents_must_be_as_expected() {
-    assertEquals(ConsoleConstants.YAML_INDENT.repeat(2), ConsoleConstants.indent(2));
+  void multipleIndentsMustBeAsExpected() {
+    assertEquals(
+        ConsoleConstants.YAML_INDENT.repeat(2),
+        ConsoleConstants.indent(2),
+        "Positive indent must return expected number of spaces");
   }
 
   @Test
-  void yellow_should_add_ansi_color_and_reset() {
+  void yellowShouldAddAnsiColorAndReset() {
     final var colored = ConsoleConstants.yellow("test");
-    assertTrue(colored.startsWith(ConsoleConstants.YELLOW));
-    assertTrue(colored.endsWith(ConsoleConstants.RESET));
+    assertTrue(
+        colored.startsWith(ConsoleConstants.YELLOW),
+        "Colored string must start with expected ANSI code");
+    assertTrue(colored.endsWith(ConsoleConstants.RESET), "Colored string must end with ANSI reset");
   }
 
   @Test
-  void blue_bold_should_add_ansi_color_and_reset() {
+  void blueBoldShouldAddAnsiColorAndReset() {
     final var colored = ConsoleConstants.blueBold("test");
-    assertTrue(colored.startsWith(ConsoleConstants.BLUE_BOLD));
-    assertTrue(colored.endsWith(ConsoleConstants.RESET));
+    assertTrue(
+        colored.startsWith(ConsoleConstants.BLUE_BOLD),
+        "Colored string must start with expected ANSI code");
+    assertTrue(colored.endsWith(ConsoleConstants.RESET), "Colored string must end with ANSI reset");
   }
 
   @Test
-  void cyan_bold_should_add_ansi_color_and_reset() {
+  void cyanBoldShouldAddAnsiColorAndReset() {
     final var colored = ConsoleConstants.cyanBold("test");
-    assertTrue(colored.startsWith(ConsoleConstants.CYAN_BOLD));
-    assertTrue(colored.endsWith(ConsoleConstants.RESET));
+    assertTrue(
+        colored.startsWith(ConsoleConstants.CYAN_BOLD),
+        "Colored string must start with expected ANSI code");
+    assertTrue(colored.endsWith(ConsoleConstants.RESET), "Colored string must end with ANSI reset");
   }
 }
