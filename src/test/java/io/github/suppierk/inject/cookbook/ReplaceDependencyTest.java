@@ -30,6 +30,7 @@ import io.github.suppierk.inject.Provides;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class ReplaceDependencyTest {
   static class Configuration {
     private final String value;
@@ -71,15 +72,21 @@ class ReplaceDependencyTest {
   }
 
   @Test
-  void example_must_work_as_expected() {
+  void exampleMustWorkAsExpected() {
     final Injector injector =
         Injector.injector().add(ProductionConfiguration.class).add(Consumer.class).build();
 
-    assertEquals("PRODUCTION", injector.get(Consumer.class).get());
+    assertEquals(
+        "PRODUCTION",
+        injector.get(Consumer.class).get(),
+        "Before replacement value must come from production configuration");
 
     final Injector testInjector =
         injector.copy().replace(ProductionConfiguration.class, TestConfiguration.class).build();
 
-    assertEquals("TEST", testInjector.get(Consumer.class).get());
+    assertEquals(
+        "TEST",
+        testInjector.get(Consumer.class).get(),
+        "After replacement value must come from test configuration");
   }
 }

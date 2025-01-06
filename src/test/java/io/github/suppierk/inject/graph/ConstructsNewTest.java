@@ -23,8 +23,8 @@ import org.junit.jupiter.api.Test;
 @SuppressWarnings("unused")
 class ConstructsNewTest {
   static class Value {
-    String first;
-    Long second;
+    final String first;
+    final Long second;
 
     Value(String first, Long second) {
       this.first = first;
@@ -41,7 +41,7 @@ class ConstructsNewTest {
   }
 
   @Test
-  void object_methods_must_work_as_expected() {
+  void objectMethodsMustWorkAsExpected() {
     final var redInjector = Injector.injector().add("Red").build();
     final var blueInjector = Injector.injector().add("Blue").build();
 
@@ -58,7 +58,7 @@ class ConstructsNewTest {
   }
 
   @Test
-  void null_constructor_argument_throws_exception() {
+  void nullConstructorArgumentThrowsException() {
     final var injectorReference = new InjectorReference();
     final var constructor = Value.constructor();
     final var parameters = List.<ParameterInformation>of();
@@ -66,44 +66,48 @@ class ConstructsNewTest {
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> new ConstructsNew<>(null, constructor, parameters, fields));
+        () -> new ConstructsNew<>(null, constructor, parameters, fields),
+        "Null injector reference must throw an exception");
     assertThrows(
         IllegalArgumentException.class,
-        () -> new ConstructsNew<>(injectorReference, null, parameters, fields));
+        () -> new ConstructsNew<>(injectorReference, null, parameters, fields),
+        "Null constructor must throw an exception");
     assertThrows(
         IllegalArgumentException.class,
-        () -> new ConstructsNew<>(injectorReference, constructor, null, fields));
+        () -> new ConstructsNew<>(injectorReference, constructor, null, fields),
+        "Null parameters information must throw an exception");
     assertThrows(
         IllegalArgumentException.class,
-        () -> new ConstructsNew<>(injectorReference, constructor, parameters, null));
+        () -> new ConstructsNew<>(injectorReference, constructor, parameters, null),
+        "Null fields information must throw an exception");
   }
 
   @Test
-  void copy_test() {
+  void copyTest() {
     final var injectorReference = new InjectorReference();
     final var constructor = Value.constructor();
 
     final var original = new ConstructsNew<>(injectorReference, constructor, List.of(), List.of());
     final var copy = original.copy(injectorReference);
 
-    assertNotNull(copy);
-    assertEquals(original, copy);
-    assertNotSame(original, copy);
+    assertNotNull(copy, "Copy must be non null");
+    assertEquals(original, copy, "Copy must be equal to original");
+    assertNotSame(original, copy, "Copy must not be the same as original");
   }
 
   @Test
-  void to_string_must_be_non_null() {
+  void toStringMustBeNonNull() {
     final var injectorReference = new InjectorReference();
     final var constructor = Value.constructor();
 
     final var original = new ConstructsNew<>(injectorReference, constructor, List.of(), List.of());
 
-    assertNotNull(original.toString());
-    assertFalse(original.toString().isBlank());
+    assertNotNull(original.toString(), "String must not be null");
+    assertFalse(original.toString().isBlank(), "String must not be blank");
   }
 
   @Test
-  void to_yaml_string_must_be_non_null() {
+  void toYamlStringMustBeNonNull() {
     final var expectedYaml =
         Stream.of(
                 "instance:",
@@ -117,11 +121,11 @@ class ConstructsNewTest {
 
     final var original = new ConstructsNew<>(injectorReference, constructor, List.of(), List.of());
 
-    assertEquals(expectedYaml, original.toYamlString(0));
+    assertEquals(expectedYaml, original.toYamlString(0), "YAML string must match the expectation");
   }
 
   @Test
-  void to_yaml_string_must_have_correct_indentation() {
+  void toYamlStringMustHaveCorrectIndentation() {
     final var expectedYaml =
         Stream.of(
                 "  instance:",
@@ -135,11 +139,11 @@ class ConstructsNewTest {
 
     final var original = new ConstructsNew<>(injectorReference, constructor, List.of(), List.of());
 
-    assertEquals(expectedYaml, original.toYamlString(1));
+    assertEquals(expectedYaml, original.toYamlString(1), "YAML string must match the expectation");
   }
 
   @Test
-  void to_yaml_string_must_support_parameters_and_fields() throws Exception {
+  void toYamlStringMustSupportParametersAndFields() throws Exception {
     final var expectedYaml =
         Stream.of(
                 "instance:",
@@ -165,12 +169,11 @@ class ConstructsNewTest {
                 new ParameterInformation(parameter, new Key<>(parameter.getType(), null), null)),
             List.of(new FieldInformation(field, new Key<>(field.getType(), null), null)));
 
-    assertEquals(expectedYaml, original.toYamlString(0));
+    assertEquals(expectedYaml, original.toYamlString(0), "YAML string must match the expectation");
   }
 
   @Test
-  void to_yaml_string_must_support_parameters_and_fields_with_correct_indentation()
-      throws Exception {
+  void toYamlStringMustSupportParametersAndFieldsWithCorrectIndentation() throws Exception {
     final var expectedYaml =
         Stream.of(
                 "  instance:",
@@ -196,6 +199,6 @@ class ConstructsNewTest {
                 new ParameterInformation(parameter, new Key<>(parameter.getType(), null), null)),
             List.of(new FieldInformation(field, new Key<>(field.getType(), null), null)));
 
-    assertEquals(expectedYaml, original.toYamlString(1));
+    assertEquals(expectedYaml, original.toYamlString(1), "YAML string must match the expectation");
   }
 }

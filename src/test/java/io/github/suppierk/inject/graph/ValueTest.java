@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.suppierk.inject.Injector;
 import io.github.suppierk.inject.InjectorReference;
-import io.github.suppierk.inject.TimedCloseable;
+import io.github.suppierk.mocks.TimedCloseable;
 import io.github.suppierk.utils.ConsoleConstants;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 class ValueTest {
   @Test
-  void object_methods_must_work_as_expected() {
+  void objectMethodsMustWorkAsExpected() {
     final var redInjector = Injector.injector().add("Red").build();
     final var blueInjector = Injector.injector().add("Blue").build();
 
@@ -31,47 +31,53 @@ class ValueTest {
   }
 
   @Test
-  void null_constructor_argument_throws_exception() {
+  void nullConstructorArgumentThrowsException() {
     final var injectorReference = new InjectorReference();
 
-    assertThrows(IllegalArgumentException.class, () -> new Value<>(injectorReference, null));
-    assertThrows(IllegalArgumentException.class, () -> new Value<>(null, "A"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new Value<>(injectorReference, null),
+        "Null instance must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new Value<>(null, "A"),
+        "Null injector reference must throw an exception");
   }
 
   @Test
-  void copy_test() {
+  void copyTest() {
     final var injectorReference = new InjectorReference();
 
     final var original = new Value<>(injectorReference, "original");
     final var copy = original.copy(new InjectorReference());
 
-    assertNotNull(copy);
-    assertEquals(original, copy);
-    assertNotSame(original, copy);
+    assertNotNull(copy, "Copy must not be null");
+    assertEquals(original, copy, "Copy must be equal to original");
+    assertNotSame(original, copy, "Copy must not be the same as original");
   }
 
   @Test
-  void close_test() {
+  void closeTest() {
     final var injectorReference = new InjectorReference();
     final var value = new TimedCloseable();
 
     final var original = new Value<>(injectorReference, value);
 
-    assertDoesNotThrow(original::close);
-    assertTrue(value.wasCloseCalled());
+    assertDoesNotThrow(original::close, "Close must not throw an exception");
+    assertTrue(value.wasCloseCalled(), "Underlying close must be called");
   }
 
   @Test
-  void to_string_must_be_non_null() {
+  void toStringMustBeNonNull() {
     final var injectorReference = new InjectorReference();
     final var original = new Value<>(injectorReference, "original");
 
-    assertNotNull(original.toString());
-    assertFalse(original.toString().isBlank());
+    assertNotNull(original.toString(), "String must not be null");
+    assertFalse(original.toString().isBlank(), "String must not be blank");
   }
 
   @Test
-  void to_yaml_string_must_be_non_null() {
+  void toYamlStringMustBeNonNull() {
     final var expectedYaml =
         Stream.of("instance:", "  singleton: " + ConsoleConstants.blueBold("true"))
             .collect(Collectors.joining(String.format("%n")));
@@ -79,11 +85,11 @@ class ValueTest {
     final var injectorReference = new InjectorReference();
     final var original = new Value<>(injectorReference, "original");
 
-    assertEquals(expectedYaml, original.toYamlString(0));
+    assertEquals(expectedYaml, original.toYamlString(0), "YAML string must match the expectation");
   }
 
   @Test
-  void to_yaml_string_must_support_indentation() {
+  void toYamlStringMustSupportIndentation() {
     final var expectedYaml =
         Stream.of("  instance:", "    singleton: " + ConsoleConstants.blueBold("true"))
             .collect(Collectors.joining(String.format("%n")));
@@ -91,6 +97,6 @@ class ValueTest {
     final var injectorReference = new InjectorReference();
     final var original = new Value<>(injectorReference, "original");
 
-    assertEquals(expectedYaml, original.toYamlString(1));
+    assertEquals(expectedYaml, original.toYamlString(1), "YAML string must match the expectation");
   }
 }

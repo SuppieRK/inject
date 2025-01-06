@@ -1,6 +1,7 @@
 package io.github.suppierk.inject;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -18,7 +19,7 @@ class ParameterInformationTest {
   }
 
   @Test
-  void object_methods_must_work_as_expected() {
+  void objectMethodsMustWorkAsExpected() {
     final var method = Prefab.class.getDeclaredMethods()[0];
     final var parameters = method.getParameters();
 
@@ -28,32 +29,33 @@ class ParameterInformationTest {
   }
 
   @Test
-  void nulls_are_not_allowed_for_certain_fields() {
+  void nullsAreNotAllowedForCertainFields() {
     final var parameter = ParameterInformation.class.getConstructors()[0].getParameters()[0];
     final var qualifierKey = new Key<>(Object.class, null);
     final var wrapper = Provider.class;
 
-    assertDoesNotThrow(() -> new ParameterInformation(parameter, qualifierKey, wrapper));
     assertThrows(
         IllegalArgumentException.class,
-        () -> new ParameterInformation(null, qualifierKey, wrapper));
+        () -> new ParameterInformation(null, qualifierKey, wrapper),
+        "Null parameter must throw an exception");
     assertThrows(
-        IllegalArgumentException.class, () -> new ParameterInformation(parameter, null, wrapper));
-    assertDoesNotThrow(() -> new ParameterInformation(parameter, qualifierKey, null));
+        IllegalArgumentException.class,
+        () -> new ParameterInformation(parameter, null, wrapper),
+        "Null key must throw an exception");
+    assertDoesNotThrow(
+        () -> new ParameterInformation(parameter, qualifierKey, null),
+        "Null wrapper must throw an exception");
   }
 
   @Test
-  void toString_returns_non_null() {
+  void toStringReturnsNonNull() {
     final var parameter = ParameterInformation.class.getConstructors()[0].getParameters()[0];
     final var qualifierKey = new Key<>(Object.class, null);
     final var wrapper = Provider.class;
 
-    final var instance =
-        assertDoesNotThrow(() -> new ParameterInformation(parameter, qualifierKey, wrapper));
+    final var instance = new ParameterInformation(parameter, qualifierKey, wrapper);
 
-    assertNotNull(instance.getParameter());
-    assertNotNull(instance.getQualifierKey());
-    assertNotNull(instance.getWrapper());
-    assertNotNull(instance.toString());
+    assertNotNull(instance.toString(), "String must not be null");
+    assertFalse(instance.toString().isBlank(), "String must not be blank");
   }
 }

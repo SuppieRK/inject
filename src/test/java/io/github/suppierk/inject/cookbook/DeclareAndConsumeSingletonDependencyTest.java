@@ -30,6 +30,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class DeclareAndConsumeSingletonDependencyTest {
   @Singleton
   static class Value {
@@ -58,9 +59,12 @@ class DeclareAndConsumeSingletonDependencyTest {
   }
 
   @Test
-  void example_must_work_as_expected() {
+  void exampleMustWorkAsExpected() {
     final Injector injector = Injector.injector().add(Value.class).add(Consumer.class).build();
 
-    assertEquals(injector.get(Consumer.class).get(), injector.get(Consumer.class).get());
+    assertEquals(
+        injector.get(Consumer.class).get(),
+        injector.get(Consumer.class).get(),
+        "Because injected values are the same they must be equal");
   }
 }

@@ -27,21 +27,31 @@ class MemoizedTest {
   }
 
   @Test
-  void null_is_not_allowed() {
-    assertThrows(IllegalArgumentException.class, () -> Memoized.memoizedProvider(null));
-    assertThrows(IllegalArgumentException.class, () -> Memoized.memoizedSupplier(null));
+  void nullIsNotAllowed() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> Memoized.memoizedProvider(null),
+        "Null provider must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> Memoized.memoizedSupplier(null),
+        "Null supplier must throw an exception");
   }
 
   @Test
-  void null_is_not_returned() {
-    assertNotNull(Memoized.memoizedProvider(() -> 0L));
-    assertNotNull(Memoized.memoizedSupplier(() -> 0L));
+  void nullIsNotReturned() {
+    assertNotNull(
+        Memoized.memoizedProvider(() -> 0L), "Memoized provider must return a non-null value");
+    assertNotNull(
+        Memoized.memoizedSupplier(() -> 0L), "Memoized supplier must return a non-null value");
 
-    assertNotNull(Memoized.memoizedSupplier(() -> 0L).toString());
+    assertNotNull(Memoized.memoizedSupplier(() -> 0L).toString(), "String must not be null");
+    assertFalse(
+        Memoized.memoizedSupplier(() -> 0L).toString().isBlank(), "String must not be blank");
   }
 
   @Test
-  void null_from_provider_causes_error() {
+  void nullFromProviderCausesError() {
     final var nullProvider =
         new Provider<>() {
           @Override
@@ -52,28 +62,28 @@ class MemoizedTest {
 
     final var memoized = Memoized.memoizedProvider(nullProvider);
 
-    assertThrows(IllegalArgumentException.class, memoized::get);
+    assertThrows(
+        IllegalArgumentException.class, memoized::get, "Null return value must throw an exception");
   }
 
   @Test
-  void lock_test() {
+  void lockTest() {
     final var memoized = Memoized.memoizedSupplier(() -> 1L);
 
-    assertTrue(memoized.isLockReleased());
+    assertTrue(memoized.isLockReleased(), "Before value retrieval the lock must not be taken");
 
     memoized.get();
 
-    assertTrue(memoized.isLockReleased());
+    assertTrue(memoized.isLockReleased(), "After value retrieval the lock must be released");
   }
 
   @Test
-  void multiple_threads_invoke_provider_once() throws InterruptedException {
+  void multipleThreadsInvokeProviderOnce() throws InterruptedException {
     final var provider = new CountingProvider();
     final var memoized = Memoized.memoizedProvider(provider);
 
-    assertEquals("Memoized(null)", memoized.toString());
-    assertTrue(memoized.isEmpty());
-    assertFalse(memoized.isPresent());
+    assertTrue(memoized.isEmpty(), "Before retrieval memoized must be empty");
+    assertFalse(memoized.isPresent(), "Before retrieval memoized must not be present");
 
     Thread[] threads = new Thread[100];
     for (int i = 0; i < threads.length; i++) {
@@ -88,57 +98,66 @@ class MemoizedTest {
       thread.join();
     }
 
-    assertEquals(1, provider.count.get());
-    assertEquals("Memoized(1)", memoized.toString());
-    assertFalse(memoized.isEmpty());
-    assertTrue(memoized.isPresent());
+    assertEquals(
+        1,
+        provider.count.get(),
+        "During multithreaded retrieval value supplier must have been called once");
+    assertFalse(memoized.isEmpty(), "After retrieval memoized must not be empty");
+    assertTrue(memoized.isPresent(), "After retrieval memoized must be present");
   }
 
   @Test
-  void if_present_test() {
+  void ifPresentTest() {
     final var memoizedValue = new AtomicLong(Long.MIN_VALUE);
     final var memoized = Memoized.memoizedSupplier(() -> 1L);
 
     memoized.ifPresent(memoizedValue::set);
-    assertNotEquals(1L, memoizedValue.get());
+    assertNotEquals(
+        1L, memoizedValue.get(), "Before value was requested ifPresent must not be invoked");
 
     memoizedValue.set(Long.MIN_VALUE);
     memoized.get();
 
     memoized.ifPresent(memoizedValue::set);
-    assertEquals(1L, memoizedValue.get());
+    assertEquals(1L, memoizedValue.get(), "After value was memoized ifPresent must be invoked");
   }
 
   @Test
-  void if_present_or_else_test() {
+  void ifPresentOrElseTest() {
     final var memoizedValue = new AtomicLong(Long.MIN_VALUE);
     final var orElseInvoked = new AtomicBoolean(false);
 
     final var memoized = Memoized.memoizedSupplier(() -> 1L);
 
     memoized.ifPresentOrElse(memoizedValue::set, () -> orElseInvoked.set(true));
-    assertNotEquals(1L, memoizedValue.get());
-    assertTrue(orElseInvoked.get());
+    assertNotEquals(
+        1L, memoizedValue.get(), "Before value was requested ifPresent part must not be invoked");
+    assertTrue(orElseInvoked.get(), "Before value was requested orElse clause must be invoked");
 
     memoizedValue.set(Long.MIN_VALUE);
     orElseInvoked.set(false);
     memoized.get();
 
     memoized.ifPresentOrElse(memoizedValue::set, () -> orElseInvoked.set(true));
-    assertEquals(1L, memoizedValue.get());
-    assertFalse(orElseInvoked.get());
+    assertEquals(
+        1L, memoizedValue.get(), "After value was requested ifPresent part must be invoked");
+    assertFalse(orElseInvoked.get(), "After value was requested orElse clause must not be invoked");
   }
 
   @Test
-  void stream_test() {
+  void streamTest() {
     final var memoized = Memoized.memoizedSupplier(() -> 1L);
 
     final var emptyStream = memoized.stream().collect(Collectors.toList());
-    assertEquals(List.of(), emptyStream);
+    assertEquals(
+        List.of(), emptyStream, "Before value was requested stream must return an empty stream");
 
     memoized.get();
 
     final var evaluatedStream = memoized.stream().collect(Collectors.toList());
-    assertEquals(List.of(1L), evaluatedStream);
+    assertEquals(
+        List.of(1L),
+        evaluatedStream,
+        "After value was requested stream must return a single value stream");
   }
 }

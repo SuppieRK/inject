@@ -22,26 +22,26 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class InjectorTest {
-  static class A {
-    final B b;
+  static class First {
+    final Second second;
 
     @Inject
-    A(B b) {
-      this.b = b;
+    First(Second second) {
+      this.second = second;
     }
   }
 
-  static class B {
-    final Provider<A> a;
+  static class Second {
+    final Provider<First> firstProvider;
 
     @Inject
-    B(Provider<A> a) {
-      this.a = a;
+    Second(Provider<First> firstProvider) {
+      this.firstProvider = firstProvider;
     }
   }
 
   @Test
-  void equals_hash_code_test() {
+  void equalsAndHashCodeAreCorrect() {
     final var injectorReference = new InjectorReference();
 
     EqualsVerifier.simple()
@@ -53,124 +53,165 @@ class InjectorTest {
   }
 
   @Test
-  void injector_self_reference_is_correct() {
+  void selfReferenceIsCorrect() {
     final var injector = Injector.injector().build();
-    assertEquals(injector, injector.get(Injector.class));
-    assertSame(injector, injector.get(Injector.class));
+    assertEquals(
+        injector, injector.get(Injector.class), "Self reference must be equal to the injector");
+    assertSame(
+        injector, injector.get(Injector.class), "Self reference must be the same as the injector");
   }
 
   @Test
-  void get_does_not_accept_null() {
+  void getCallThrowsForNullArgument() {
     final var injector = Injector.injector().build();
-    assertThrows(IllegalArgumentException.class, () -> injector.get(null));
+    assertThrows(
+        IllegalArgumentException.class, () -> injector.get(null), "Null argument is not allowed");
   }
 
   @Test
-  void copy_test() {
+  void copyTest() {
     final var builder = Injector.injector();
-    assertDoesNotThrow(() -> builder.add(A.class));
-    assertDoesNotThrow(() -> builder.add(B.class));
+    assertDoesNotThrow(() -> builder.add(First.class));
+    assertDoesNotThrow(() -> builder.add(Second.class));
     final var injector = assertDoesNotThrow(builder::build);
 
     final var injectorCopyBuilder = assertDoesNotThrow(injector::copy);
     final var injectorCopy = assertDoesNotThrow(injectorCopyBuilder::build);
 
-    assertNotSame(injector, injectorCopy);
-    assertEquals(injector, injectorCopy);
+    assertEquals(injector, injectorCopy, "Copy must be equal to the original");
+    assertNotSame(injector, injectorCopy, "Copy must not be the same as original");
   }
 
   @Test
-  void to_string_must_be_non_null() {
+  void toStringForEmptyInjectorMustReturnExpectedValue() {
     final var expectedYaml = "injector: [ ]";
 
     final var injector = Injector.injector().build();
 
-    assertEquals(expectedYaml, injector.toString());
+    assertEquals(expectedYaml, injector.toString(), "YAML string must match the expectation");
   }
 
   @Test
-  void to_string_must_have_topological_order() {
-    /**
-     * injector: - type: io.github.suppierk.inject.normal.CircularDependenciesProviderBreakTest$B
-     * annotations: [ ] instance: singleton: false constructor: - type:
-     * io.github.suppierk.inject.normal.CircularDependenciesProviderBreakTest$A annotations: [ ]
-     * fields: [ ]
-     *
-     * <p>- type: io.github.suppierk.inject.normal.CircularDependenciesProviderBreakTest$A
-     * annotations: [ ] instance: singleton: false constructor: - type:
-     * io.github.suppierk.inject.normal.CircularDependenciesProviderBreakTest$B annotations: [ ]
-     * fields: [ ]
-     */
+  void toStringForNonEmptyInjectorMustHaveTopologicalOrder() {
     final var expectedYaml =
         Stream.of(
                 "injector:",
-                "  - type: " + ConsoleConstants.cyanBold(B.class.getName()),
+                "  - type: " + ConsoleConstants.cyanBold(Second.class.getName()),
                 "    annotations: [ ]",
                 "    instance:",
                 "      singleton: " + ConsoleConstants.blueBold("false"),
                 "      constructor:",
-                "        - type: " + ConsoleConstants.cyanBold(A.class.getName()),
+                "        - type: " + ConsoleConstants.cyanBold(First.class.getName()),
                 "          annotations: [ ]",
                 "      fields: [ ]",
                 "",
-                "  - type: " + ConsoleConstants.cyanBold(A.class.getName()),
+                "  - type: " + ConsoleConstants.cyanBold(First.class.getName()),
                 "    annotations: [ ]",
                 "    instance:",
                 "      singleton: " + ConsoleConstants.blueBold("false"),
                 "      constructor:",
-                "        - type: " + ConsoleConstants.cyanBold(B.class.getName()),
+                "        - type: " + ConsoleConstants.cyanBold(Second.class.getName()),
                 "          annotations: [ ]",
                 "      fields: [ ]")
             .collect(Collectors.joining(String.format("%n")));
 
-    final var injector = Injector.injector().add(A.class).add(B.class).build();
+    final var injector = Injector.injector().add(First.class).add(Second.class).build();
 
-    assertEquals(expectedYaml, injector.toString());
+    assertEquals(expectedYaml, injector.toString(), "YAML string must match the expectation");
   }
 
   @Nested
   class Builder {
     @Test
-    void does_not_accept_null() {
-      final var builder = Injector.injector();
-
-      assertThrows(IllegalArgumentException.class, () -> builder.add(null));
-      assertThrows(IllegalArgumentException.class, () -> builder.add((Object) null));
+    void factoryMethodReturnsNonNull() {
+      assertNotNull(Injector.injector(), "Injector builder factory method must not return null");
     }
 
     @Test
-    void does_not_accept_abstract_classes() {
+    void acceptsMultipleClasses() {
       final var builder = Injector.injector();
+      assertDoesNotThrow(
+          () -> builder.add(First.class, Second.class),
+          "There must be no problem with adding multiple classes");
+      final var injector =
+          assertDoesNotThrow(builder::build, "There must be no problem with creating injector");
 
-      assertThrows(IllegalArgumentException.class, () -> builder.add(AbstractMap.class));
+      assertNotNull(injector.get(First.class), "Dependency must be present");
+      assertNotNull(injector.get(Second.class), "Dependency must be present");
     }
 
     @Test
-    void does_not_accept_interfaces() {
-      final var builder = Injector.injector();
+    void acceptsMultipleObjects() {
+      final var second = new Second(() -> null);
+      final var first = new First(second);
 
-      assertThrows(IllegalArgumentException.class, () -> builder.add(Cloneable.class));
+      final var builder = Injector.injector();
+      assertDoesNotThrow(
+          () -> builder.add(first, second), "There must be no problem with adding multiple values");
+      final var injector =
+          assertDoesNotThrow(builder::build, "There must be no problem with creating injector");
+
+      assertEquals(first, injector.get(First.class), "Dependency must be present");
+      assertEquals(second, injector.get(Second.class), "Dependency must be present");
     }
 
     @Test
-    void does_not_accept_class_duplicates() {
+    void doesNotAcceptNull() {
       final var builder = Injector.injector();
 
-      assertDoesNotThrow(() -> builder.add(String.class));
-      assertThrows(IllegalArgumentException.class, () -> builder.add(String.class));
+      assertThrows(
+          IllegalArgumentException.class, () -> builder.add(null), "Null argument is not allowed");
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> builder.add((Object) null),
+          "Null argument is not allowed");
     }
 
     @Test
-    void does_not_accept_object_duplicates() {
+    void doesNotAcceptAbstractClasses() {
       final var builder = Injector.injector();
 
-      assertDoesNotThrow(() -> builder.add("Original"));
-      assertThrows(IllegalArgumentException.class, () -> builder.add("Duplicate"));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> builder.add(AbstractMap.class),
+          "Abstract class is not allowed");
+    }
+
+    @Test
+    void doesNotAcceptInterfaces() {
+      final var builder = Injector.injector();
+
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> builder.add(Cloneable.class),
+          "Interface is not allowed");
+    }
+
+    @Test
+    void doesNotAcceptClassDuplicates() {
+      final var builder = Injector.injector();
+
+      assertDoesNotThrow(() -> builder.add(String.class), "Simple class is allowed");
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> builder.add(String.class),
+          "Duplication of the same class is not allowed");
+    }
+
+    @Test
+    void doesNotAcceptValueDuplicates() {
+      final var builder = Injector.injector();
+
+      assertDoesNotThrow(() -> builder.add("Original"), "Simple value is allowed");
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> builder.add("Duplicate"),
+          "Duplicated value on the same class is not allowed");
     }
   }
 
   @Nested
-  class Copy {
+  class CopyBuilder {
     class OldValue {
       OldValue() {}
     }
@@ -188,7 +229,7 @@ class InjectorTest {
     }
 
     @Test
-    void does_not_accept_null() {
+    void doesNotAcceptNull() {
       final var builder = Injector.injector().build().copy();
 
       final var originalClass = HashMap.class;
@@ -197,60 +238,96 @@ class InjectorTest {
       final var original = new HashMap<String, String>();
       final var replacement = new LinkedHashMap<String, String>();
 
-      assertThrows(IllegalArgumentException.class, () -> builder.replace(originalClass, null));
-      assertThrows(IllegalArgumentException.class, () -> builder.replace(null, replacementClass));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> builder.replace(originalClass, null),
+          "Null replacement class is not allowed");
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> builder.replace(null, replacementClass),
+          "Null original class is not allowed");
 
-      assertThrows(IllegalArgumentException.class, () -> builder.replace(original, null));
-      assertThrows(IllegalArgumentException.class, () -> builder.replace(null, replacement));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> builder.replace(original, null),
+          "Null replacement value is not allowed");
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> builder.replace(null, replacement),
+          "Null original value is not allowed");
     }
 
     @Test
-    void does_not_replace_same_class() {
+    void doesNotReplaceSameClass() {
       final var injector = Injector.injector().add(OldValue.class).build();
       final var builder = injector.copy();
 
-      assertNotNull(assertDoesNotThrow(() -> builder.replace(OldValue.class, OldValue.class)));
-      final var copiedInjector = assertDoesNotThrow(builder::build);
+      assertNotNull(
+          assertDoesNotThrow(
+              () -> builder.replace(OldValue.class, OldValue.class),
+              "Replacement must not throw an exception"),
+          "Replacement call must return non-null builder instance");
+      final var copiedInjector =
+          assertDoesNotThrow(builder::build, "There must be no problem with creating injector");
 
-      assertEquals(copiedInjector, injector);
+      assertEquals(
+          copiedInjector,
+          injector,
+          "Copy of the injector after replacement should be equal to original");
     }
 
     @Test
-    void does_not_replace_same_object() {
+    void doesNotReplaceSameObject() {
       final var injector = Injector.injector().add("Object").build();
       final var builder = injector.copy();
 
-      assertNotNull(assertDoesNotThrow(() -> builder.replace("Object", "Object")));
-      final var copiedInjector = assertDoesNotThrow(builder::build);
+      assertNotNull(
+          assertDoesNotThrow(
+              () -> builder.replace("Object", "Object"), "Replacement must not throw an exception"),
+          "Replacement call must return non-null builder instance");
+      final var copiedInjector =
+          assertDoesNotThrow(builder::build, "There must be no problem with creating injector");
 
-      assertEquals(copiedInjector, injector);
+      assertEquals(
+          copiedInjector,
+          injector,
+          "Copy of the injector after replacement should be equal to original");
     }
 
     @Test
-    void does_not_accept_non_existent_key() {
+    void doesNotAcceptNonExistentKey() {
       final var builder = Injector.injector().build().copy();
 
       assertThrows(
-          IllegalArgumentException.class, () -> builder.replace(OldValue.class, NewValue.class));
+          IllegalArgumentException.class,
+          () -> builder.replace(OldValue.class, NewValue.class),
+          "Replacing missing dependency must throw an exception");
     }
 
     @Test
-    void does_not_accept_override_of_override() {
+    void doesNotAcceptOverrideOfOverride() {
       final var builder = Injector.injector().add(OldValue.class).build().copy();
 
-      assertNotNull(assertDoesNotThrow(() -> builder.replace(OldValue.class, NewValue.class)));
+      assertNotNull(
+          assertDoesNotThrow(
+              () -> builder.replace(OldValue.class, NewValue.class),
+              "Replacement must not throw an exception"),
+          "Replacement call must return non-null builder instance");
       assertThrows(
           IllegalArgumentException.class,
-          () -> builder.replace(OldValue.class, AnotherValue.class));
+          () -> builder.replace(OldValue.class, AnotherValue.class),
+          "Replacing already replaced dependency must throw an exception");
     }
 
     @Test
-    void does_not_accept_override_to_existing_key() {
+    void doesNotAcceptOverrideToExistingKey() {
       final var builder =
           Injector.injector().add(OldValue.class).add(NewValue.class).build().copy();
 
       assertThrows(
-          IllegalArgumentException.class, () -> builder.replace(OldValue.class, NewValue.class));
+          IllegalArgumentException.class,
+          () -> builder.replace(OldValue.class, NewValue.class),
+          "Replacement to already defined dependency must throw an exception");
     }
   }
 }

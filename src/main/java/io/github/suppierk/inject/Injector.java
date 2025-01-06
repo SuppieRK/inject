@@ -753,7 +753,7 @@ public final class Injector implements Closeable {
         }
       }
 
-      if (injectConstructor == null && defaultConstructor == null) {
+      if ((injectConstructor == null) == (defaultConstructor == null)) {
         throw new IllegalArgumentException(
             String.format(NO_SUITABLE_CONSTRUCTORS_TEMPLATE, clazz.getName()));
       }

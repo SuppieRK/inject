@@ -30,6 +30,7 @@ import io.github.suppierk.inject.Provides;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 class DeclareFactoryTest {
   static class ValueProvider {
     @Provides
@@ -52,10 +53,13 @@ class DeclareFactoryTest {
   }
 
   @Test
-  void example_must_work_as_expected() {
+  void exampleMustWorkAsExpected() {
     final Injector injector =
         Injector.injector().add(ValueProvider.class).add(Consumer.class).build();
 
-    assertNotEquals(injector.get(Consumer.class).get(), injector.get(Consumer.class).get());
+    assertNotEquals(
+        injector.get(Consumer.class).get(),
+        injector.get(Consumer.class).get(),
+        "Because factory declares value as non singleton, injected values must be different");
   }
 }
