@@ -31,6 +31,7 @@ import io.github.suppierk.inject.graph.ProvidesSingleton;
 import io.github.suppierk.inject.graph.RefersTo;
 import io.github.suppierk.inject.graph.ReflectionNode;
 import io.github.suppierk.inject.graph.Value;
+import io.github.suppierk.inject.query.KeyAnnotationsPredicate;
 import io.github.suppierk.utils.ConsoleConstants;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
@@ -58,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -75,6 +77,8 @@ public final class Injector implements Closeable {
   private static final String NULL_VALUE_TEMPLATE = "%s is null";
   private static final String DUPLICATE_VALUE_TEMPLATE = "Duplicate: %s";
   private static final String MISSING_VALUE_TEMPLATE = "Missing: %s";
+  private static final String MULTIPLE_VALUES_TEMPLATE =
+      "Multiple values available for %s and predicate %s";
   private static final String ALREADY_REPLACED_VALUE_TEMPLATE = "Already replaced: %s";
   private static final String CYCLE_TEMPLATE = "Found cycle: %s";
   private static final String MULTIPLE_INJECT_CONSTRUCTORS_TEMPLATE =
@@ -105,7 +109,7 @@ public final class Injector implements Closeable {
   private Injector(InjectorReference injectorReference, Map<Key<?>, Node<?>> providers) {
     injectorReference.set(this);
 
-    this.providers = providers;
+    this.providers = Map.copyOf(providers);
     this.currentInjector = new Value<>(injectorReference, Injector.this);
   }
 
@@ -117,7 +121,7 @@ public final class Injector implements Closeable {
    * @param clazz to retrieve
    * @param <T> is the type of the instance
    * @return initialized instance
-   * @throws IllegalArgumentException is the class argument is {@code null}
+   * @throws IllegalArgumentException if the class argument is {@code null}
    */
   public <T> T get(Class<T> clazz) {
     if (clazz == null) {
@@ -126,6 +130,111 @@ public final class Injector implements Closeable {
 
     final var node = getNode(new Key<>(clazz, getQualifierAnnotations(clazz.getAnnotations())));
     return node.get();
+  }
+
+  /**
+   * Retrieve fully initialized instance of the class.
+   *
+   * <p>This call will also create all required dependencies for this class.
+   *
+   * <p>Useful in conjunction with {@link #findOne(Class, KeyAnnotationsPredicate)} or {@link
+   * #findAll(Class, KeyAnnotationsPredicate)}.
+   *
+   * @param key to retrieve
+   * @param <T> is the type of the instance
+   * @return initialized instance
+   * @throws IllegalArgumentException if the class argument is {@code null}
+   */
+  public <T> T get(Key<T> key) {
+    if (key == null) {
+      throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Key"));
+    }
+
+    final var node = getNode(key);
+    return node.get();
+  }
+
+  /**
+   * Find if {@link Injector} has an instance of specified class with certain annotations and their
+   * values.
+   *
+   * @param clazz to find
+   * @param keyAnnotationsPredicate to match
+   * @return an {@link Optional} {@link Key} which can be used to retrieve dependency
+   * @param <T> is the type of the instance
+   * @throws IllegalArgumentException if class or predicate arguments is {@code null}
+   * @throws IllegalStateException if there is more than one dependency match
+   */
+  public <T> Optional<Key<T>> findOne(
+      Class<T> clazz, KeyAnnotationsPredicate keyAnnotationsPredicate) {
+    final var keys = findAll(clazz, keyAnnotationsPredicate);
+
+    if (keys.isEmpty()) {
+      return Optional.empty();
+    }
+
+    if (keys.size() > 1) {
+      throw new IllegalStateException(
+          String.format(MULTIPLE_VALUES_TEMPLATE, clazz, keyAnnotationsPredicate));
+    }
+
+    return Optional.of(keys.get(0));
+  }
+
+  /**
+   * Find if {@link Injector} has an instance of specified class with certain annotations and their
+   * values.
+   *
+   * @param clazz to find
+   * @param keyAnnotationsPredicate to match
+   * @return a {@link List} of {@link Key}s which can be used to retrieve dependencies
+   * @param <T> is the type of the instance
+   * @throws IllegalArgumentException if class or predicate arguments is {@code null}
+   */
+  @SuppressWarnings("unchecked")
+  public <T> List<Key<T>> findAll(Class<T> clazz, KeyAnnotationsPredicate keyAnnotationsPredicate) {
+    if (clazz == null) {
+      throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Class"));
+    }
+
+    if (keyAnnotationsPredicate == null) {
+      throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Injector predicate"));
+    }
+
+    final var keys = new ArrayList<Key<T>>();
+
+    for (Key<?> key : providers.keySet()) {
+      if (key.type().isAssignableFrom(clazz) && keyAnnotationsPredicate.test(key)) {
+        keys.add((Key<T>) key);
+      }
+    }
+
+    return List.copyOf(keys);
+  }
+
+  /**
+   * Find if {@link Injector} has an instance of specified class.
+   *
+   * @param clazz to find
+   * @return an {@link Optional} {@link Key} which can be used to retrieve dependency
+   * @param <T> is the type of the instance
+   * @throws IllegalArgumentException if class or predicate arguments is {@code null}
+   * @throws IllegalStateException if there is more than one dependency match
+   */
+  public <T> Optional<Key<T>> findOne(Class<T> clazz) {
+    return findOne(clazz, KeyAnnotationsPredicate.alwaysMatch());
+  }
+
+  /**
+   * Find if {@link Injector} has an instance of specified class.
+   *
+   * @param clazz to find
+   * @return a {@link List} of {@link Key}s which can be used to retrieve dependencies
+   * @param <T> is the type of the instance
+   * @throws IllegalArgumentException if class or predicate arguments is {@code null}
+   */
+  public <T> List<Key<T>> findAll(Class<T> clazz) {
+    return findAll(clazz, KeyAnnotationsPredicate.alwaysMatch());
   }
 
   /**
@@ -537,7 +646,7 @@ public final class Injector implements Closeable {
           () -> {
             for (Node<?> node : providers.values()) {
               for (Key<?> key : node.parentKeys()) {
-                if (!providers.containsKey(key)) {
+                if (!Injector.class.equals(key.type()) && !providers.containsKey(key)) {
                   throw new IllegalArgumentException(String.format(MISSING_VALUE_TEMPLATE, key));
                 }
               }
