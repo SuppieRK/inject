@@ -6,15 +6,20 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.suppierk.inject.graph.Node;
 import io.github.suppierk.inject.graph.Value;
+import io.github.suppierk.inject.query.KeyAnnotationsPredicate;
 import io.github.suppierk.utils.ConsoleConstants;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Provider;
 import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import nl.jqno.equalsverifier.EqualsVerifier;
@@ -37,6 +42,32 @@ class InjectorTest {
     @Inject
     Second(Provider<First> firstProvider) {
       this.firstProvider = firstProvider;
+    }
+  }
+
+  static class TestValue {
+    private final long time;
+
+    TestValue() {
+      this.time = System.nanoTime();
+    }
+
+    public long get() {
+      return time;
+    }
+  }
+
+  static class TestValueProvider {
+    @Provides
+    @Named(value = "firstValue")
+    TestValue firstValue() {
+      return new TestValue();
+    }
+
+    @Provides
+    @Named(value = "secondValue")
+    TestValue secondValue() {
+      return new TestValue();
     }
   }
 
@@ -65,7 +96,139 @@ class InjectorTest {
   void getCallThrowsForNullArgument() {
     final var injector = Injector.injector().build();
     assertThrows(
-        IllegalArgumentException.class, () -> injector.get(null), "Null argument is not allowed");
+        IllegalArgumentException.class,
+        () -> injector.get((Key<?>) null),
+        "Null argument is not allowed");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> injector.get((Class<?>) null),
+        "Null argument is not allowed");
+  }
+
+  @Test
+  void getNonExistingKeyThrowsNoSuchElementException() {
+    final var key = new Key<>(String.class, Set.of());
+    final var injector = Injector.injector().build();
+
+    assertThrows(
+        NoSuchElementException.class,
+        () -> injector.get(key),
+        "Retrieving non existing key must throw NoSuchElementException");
+  }
+
+  @Test
+  void getExistingKeyReturnsCorrectValue() {
+    final var value = "testValue";
+    final var key = new Key<>(String.class, Set.of());
+    final var injector = Injector.injector().add(value).build();
+
+    final var retrievedValue =
+        assertDoesNotThrow(
+            () -> injector.get(key),
+            "Retrieving existing key must not throw NoSuchElementException");
+    assertEquals(value, retrievedValue, "Retrieved value must match to the expected value");
+  }
+
+  @Test
+  void findOneThrowsIllegalArgumentIfAnyOfArgumentsIsNull() {
+    final var injector = Injector.injector().build();
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> injector.findOne(null),
+        "Must throw IllegalArgumentException if class is null");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> injector.findOne(null, KeyAnnotationsPredicate.alwaysMatch()),
+        "Must throw IllegalArgumentException if class is null");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> injector.findOne(String.class, null),
+        "Must throw IllegalArgumentException if predicate is null");
+  }
+
+  @Test
+  void findOneThrowsIllegalStateExceptionForMultipleOptions() {
+    final var injector = Injector.injector().add(TestValueProvider.class).build();
+
+    assertThrows(
+        IllegalStateException.class,
+        () -> injector.findOne(TestValue.class),
+        "Must throw IllegalStateException when there are more than one possible option");
+  }
+
+  @Test
+  void findOneReturnsEmptyOptionalForNoOptions() {
+    final var injector = Injector.injector().add(TestValueProvider.class).build();
+
+    final var result =
+        assertDoesNotThrow(
+            () -> injector.findOne(String.class),
+            "Must not throw IllegalStateException when there are no options");
+    assertNotNull(result, "Result must not be null");
+    assertTrue(result.isEmpty(), "Result must be empty");
+  }
+
+  @Test
+  void findOneReturnsNonEmptyOptionalForSingleOption() {
+    final var injector = Injector.injector().add(TestValueProvider.class).build();
+
+    final var result =
+        assertDoesNotThrow(
+            () ->
+                injector.findOne(
+                    TestValue.class,
+                    KeyAnnotationsPredicate.keyAnnotationPredicate()
+                        .allMatch()
+                        .having(
+                            annotation ->
+                                annotation.exactly(Named.class).with("value", "firstValue"))
+                        .build()),
+            "Must not throw IllegalStateException when there is one option");
+    assertNotNull(result, "Result must not be null");
+    assertTrue(result.isPresent(), "Result must be present");
+  }
+
+  @Test
+  void findAllThrowsIllegalArgumentIfAnyOfArgumentsIsNull() {
+    final var injector = Injector.injector().build();
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> injector.findAll(null),
+        "Must throw IllegalArgumentException if class is null");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> injector.findAll(null, KeyAnnotationsPredicate.alwaysMatch()),
+        "Must throw IllegalArgumentException if class is null");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> injector.findAll(String.class, null),
+        "Must throw IllegalArgumentException if predicate is null");
+  }
+
+  @Test
+  void findAllReturnsMultipleOptions() {
+    final var injector = Injector.injector().add(TestValueProvider.class).build();
+
+    final var result =
+        assertDoesNotThrow(
+            () -> injector.findAll(TestValue.class),
+            "Must not throw exception when there are more than one possible option");
+    assertNotNull(result, "Result must not be null");
+    assertEquals(2, result.size(), "Expecting 2 options available");
+  }
+
+  @Test
+  void findAllReturnsEmptyListForNoOptions() {
+    final var injector = Injector.injector().add(TestValueProvider.class).build();
+
+    final var result =
+        assertDoesNotThrow(
+            () -> injector.findAll(String.class),
+            "Must not throw IllegalStateException when there are no options");
+    assertNotNull(result, "Result must not be null");
+    assertTrue(result.isEmpty(), "Result must be empty");
   }
 
   @Test

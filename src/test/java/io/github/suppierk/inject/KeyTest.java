@@ -133,8 +133,8 @@ class KeyTest {
       final var key = new Key<>(clazz, null);
 
       assertEquals(clazz, key.type(), "Dependency type must match");
-      assertNotNull(key.annotations(), "Annotation must not be null");
-      assertTrue(key.annotations().isEmpty(), "Annotation must not be null");
+      assertNotNull(key.annotationWrappers(), "Annotation must not be null");
+      assertTrue(key.annotationWrappers().isEmpty(), "Annotation must not be null");
       assertNotNull(key.toString(), "toString must not be null");
     }
   }
@@ -171,8 +171,11 @@ class KeyTest {
       final var key = new Key<>(clazz, Set.of(qualifier));
 
       assertEquals(clazz, key.type(), "Dependency type must match");
-      assertNotNull(key.annotations(), "Annotations must not be null");
-      assertTrue(key.annotations().contains(qualifier), "Annotation must be recorded");
+      assertNotNull(key.annotationWrappers(), "Annotations must not be null");
+      assertTrue(
+          key.annotationWrappers().stream()
+              .anyMatch(wrapper -> wrapper.annotation().equals(qualifier)),
+          "Annotation must be recorded");
       assertNotNull(key.toString(), "toString must not be null");
     }
   }
@@ -196,8 +199,11 @@ class KeyTest {
       final var key = new Key<>(clazz, Set.of(qualifier));
 
       assertEquals(clazz, key.type(), "Dependency type must match");
-      assertNotNull(key.annotations(), "Annotations must not be null");
-      assertTrue(key.annotations().contains(qualifier), "Annotation must be recorded");
+      assertNotNull(key.annotationWrappers(), "Annotations must not be null");
+      assertTrue(
+          key.annotationWrappers().stream()
+              .anyMatch(wrapper -> wrapper.annotation().equals(qualifier)),
+          "Annotation must be recorded");
       assertNotNull(key.toString(), "toString must not be null");
     }
   }
@@ -215,9 +221,15 @@ class KeyTest {
       final var key = new Key<>(clazz, Set.of(firstQualifier, secondQualifier));
 
       assertEquals(clazz, key.type(), "Dependency type must match");
-      assertNotNull(key.annotations(), "Annotations must not be null");
-      assertTrue(key.annotations().contains(firstQualifier), "Annotation must be recorded");
-      assertTrue(key.annotations().contains(secondQualifier), "Annotation must be recorded");
+      assertNotNull(key.annotationWrappers(), "Annotations must not be null");
+      assertTrue(
+          key.annotationWrappers().stream()
+              .anyMatch(wrapper -> wrapper.annotation().equals(firstQualifier)),
+          "Annotation must be recorded");
+      assertTrue(
+          key.annotationWrappers().stream()
+              .anyMatch(wrapper -> wrapper.annotation().equals(secondQualifier)),
+          "Annotation must be recorded");
       assertNotNull(key.toString(), "toString must not be null");
     }
   }

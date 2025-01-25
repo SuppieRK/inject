@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
  */
 public final class Key<T> {
   private final Class<T> type;
-  private final Set<Annotation> annotations;
+  private final Set<AnnotationWrapper> annotationWrappers;
 
   public Key(Class<T> type, Set<Annotation> annotations) {
     if (type == null) {
@@ -47,16 +47,22 @@ public final class Key<T> {
     }
 
     if (annotations == null) {
-      this.annotations = Set.of();
+      this.annotationWrappers = Set.of();
     } else {
-      for (Annotation annotation : annotations) {
-        if (!annotation.annotationType().isAnnotationPresent(Qualifier.class)) {
-          throw new IllegalArgumentException(
-              "Annotation " + annotation.annotationType().getName() + " is not a @Qualifier");
-        }
-      }
+      this.annotationWrappers =
+          annotations.stream()
+              .map(
+                  annotation -> {
+                    if (!annotation.annotationType().isAnnotationPresent(Qualifier.class)) {
+                      throw new IllegalArgumentException(
+                          "Annotation @"
+                              + annotation.annotationType().getName()
+                              + " is not a @Qualifier");
+                    }
 
-      this.annotations = Set.copyOf(annotations);
+                    return new AnnotationWrapper(annotation);
+                  })
+              .collect(Collectors.toUnmodifiableSet());
     }
   }
 
@@ -64,20 +70,24 @@ public final class Key<T> {
     return type;
   }
 
-  public Set<Annotation> annotations() {
-    return annotations;
+  public Set<AnnotationWrapper> annotationWrappers() {
+    return annotationWrappers;
   }
 
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof Key)) return false;
+    if (!(o instanceof Key)) {
+      return false;
+    }
+
     Key<?> that = (Key<?>) o;
-    return Objects.equals(type, that.type) && Objects.equals(annotations, that.annotations);
+    return Objects.equals(type, that.type)
+        && Objects.equals(annotationWrappers, that.annotationWrappers);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(type, annotations);
+    return Objects.hash(type, annotationWrappers);
   }
 
   @Override
@@ -86,11 +96,13 @@ public final class Key<T> {
         "%s(%s%s)",
         Key.class.getSimpleName(),
         type.getName(),
-        annotations.isEmpty()
+        annotationWrappers.isEmpty()
             ? ""
             : String.format(
                 " as [%s]",
-                annotations.stream().map(Annotation::toString).collect(Collectors.joining(", "))));
+                annotationWrappers.stream()
+                    .map(AnnotationWrapper::toString)
+                    .collect(Collectors.joining(", "))));
   }
 
   /**
@@ -113,18 +125,18 @@ public final class Key<T> {
         firstIndent,
         ConsoleConstants.cyanBold(type.getName()),
         nestedIndent,
-        annotations().isEmpty()
+        annotationWrappers().isEmpty()
             ? ConsoleConstants.YAML_EMPTY_ARRAY
             : String.format(
                 "%n%s",
-                annotations().stream()
+                annotationWrappers().stream()
                     .map(
-                        annotation ->
+                        annotationWrapper ->
                             String.format(
                                 "%s%s'%s'",
                                 ConsoleConstants.indent(actualIndent + 1),
                                 ConsoleConstants.YAML_ITEM,
-                                annotationString(annotation)))
+                                annotationString(annotationWrapper.annotation())))
                     .collect(Collectors.joining(String.format("%n")))));
   }
 
