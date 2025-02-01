@@ -46,49 +46,52 @@ class KeyAnnotationsPredicateTest {
 
   @Test
   void toStringMustWorkAsExpected() {
-    final var exactPredicate =
-        AnnotationPredicate.annotationPredicate().exactly(CustomQualifier.class).build();
-    final var likePredicate =
+    final var customPredicate =
+        AnnotationPredicate.annotationPredicate().match(CustomQualifier.class).build();
+    final var namedPredicate =
         AnnotationPredicate.annotationPredicate()
-            .like(Named.class)
-            .with("value", "predicateTest")
+            .match(Named.class)
+            .where(named -> named.value().equals("predicateTest"))
             .build();
 
     final var allMatchPredicate =
-        KeyAnnotationsPredicate.keyAnnotationPredicate().allMatch().having(exactPredicate).build();
+        KeyAnnotationsPredicate.keyAnnotationPredicate().allMatch().having(customPredicate).build();
 
     assertEquals(
-        "All match [Match exactly @CustomQualifier]",
+        "All match [Matches io.github.suppierk.mocks.CustomQualifier annotation]",
         allMatchPredicate.toString(),
         "toString() must return expected value");
 
     final var anyMatchPredicate =
-        KeyAnnotationsPredicate.keyAnnotationPredicate().anyMatch().having(exactPredicate).build();
+        KeyAnnotationsPredicate.keyAnnotationPredicate().anyMatch().having(customPredicate).build();
 
     assertEquals(
-        "Any match [Match exactly @CustomQualifier]",
+        "Any match [Matches io.github.suppierk.mocks.CustomQualifier annotation]",
         anyMatchPredicate.toString(),
         "toString() must return expected value");
 
     final var noneMatchPredicate =
-        KeyAnnotationsPredicate.keyAnnotationPredicate().noneMatch().having(exactPredicate).build();
+        KeyAnnotationsPredicate.keyAnnotationPredicate()
+            .noneMatch()
+            .having(customPredicate)
+            .build();
 
     assertEquals(
-        "None match [Match exactly @CustomQualifier]",
+        "None match [Matches io.github.suppierk.mocks.CustomQualifier annotation]",
         noneMatchPredicate.toString(),
         "toString() must return expected value");
 
     final var multipleMatchPredicate =
         KeyAnnotationsPredicate.keyAnnotationPredicate()
             .allMatch()
-            .having(exactPredicate)
-            .having(likePredicate)
+            .having(customPredicate)
+            .having(namedPredicate)
             .build();
 
     assertTrue(
         Set.of(
-                "All match [Match exactly @CustomQualifier, Match similar to @Named{value=predicateTest}]",
-                "All match [Match similar to @Named{value=predicateTest}, Match exactly @CustomQualifier]")
+                "All match [Matches io.github.suppierk.mocks.CustomQualifier annotation, Matches jakarta.inject.Named annotation]",
+                "All match [Matches jakarta.inject.Named annotation, Matches io.github.suppierk.mocks.CustomQualifier annotation]")
             .contains(multipleMatchPredicate.toString()),
         "toString() must return expected value");
   }
@@ -117,7 +120,7 @@ class KeyAnnotationsPredicateTest {
       final var predicate =
           KeyAnnotationsPredicate.keyAnnotationPredicate()
               .allMatch()
-              .having(annotation -> annotation.exactly(CustomQualifier.class))
+              .having(annotation -> annotation.match(CustomQualifier.class))
               .build();
       assertThrows(IllegalArgumentException.class, () -> predicate.test(null));
     }
@@ -137,7 +140,7 @@ class KeyAnnotationsPredicateTest {
       final var predicate =
           KeyAnnotationsPredicate.keyAnnotationPredicate()
               .noneMatch()
-              .having(annotation -> annotation.exactly(CustomQualifier.class))
+              .having(annotation -> annotation.match(CustomQualifier.class))
               .build();
 
       assertFalse(
@@ -157,7 +160,7 @@ class KeyAnnotationsPredicateTest {
       final var predicate =
           KeyAnnotationsPredicate.keyAnnotationPredicate()
               .anyMatch()
-              .having(annotation -> annotation.exactly(CustomQualifier.class))
+              .having(annotation -> annotation.match(CustomQualifier.class))
               .build();
 
       assertTrue(
@@ -178,7 +181,7 @@ class KeyAnnotationsPredicateTest {
       final var predicate =
           KeyAnnotationsPredicate.keyAnnotationPredicate()
               .allMatch()
-              .having(annotation -> annotation.exactly(CustomQualifier.class))
+              .having(annotation -> annotation.match(CustomQualifier.class))
               .build();
 
       assertFalse(
@@ -227,33 +230,10 @@ class KeyAnnotationsPredicateTest {
               builder.having(
                   (Function<
                           AnnotationPredicate.AnnotationClass,
-                          AnnotationPredicate.AnnotationMembers>)
+                          AnnotationPredicate.AnnotationMembersPredicate<?>>)
                       null));
       assertThrows(
-          IllegalArgumentException.class, () -> builder.having((AnnotationPredicate) null));
-    }
-
-    @Test
-    void differentHavingUsagesYieldSameResultForSameInputs() {
-      final var likePredicate =
-          AnnotationPredicate.annotationPredicate()
-              .like(Named.class)
-              .with("value", "predicateTest")
-              .build();
-
-      final var valueHaving =
-          KeyAnnotationsPredicate.keyAnnotationPredicate().allMatch().having(likePredicate).build();
-
-      final var functionHaving =
-          KeyAnnotationsPredicate.keyAnnotationPredicate()
-              .allMatch()
-              .having(annotation -> annotation.like(Named.class).with("value", "predicateTest"))
-              .build();
-
-      assertEquals(
-          valueHaving,
-          functionHaving,
-          "Two different having() calls with same inputs must yield same results");
+          IllegalArgumentException.class, () -> builder.having((AnnotationPredicate<?>) null));
     }
   }
 }

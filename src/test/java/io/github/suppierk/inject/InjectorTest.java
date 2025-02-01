@@ -182,7 +182,9 @@ class InjectorTest {
                         .allMatch()
                         .having(
                             annotation ->
-                                annotation.exactly(Named.class).with("value", "firstValue"))
+                                annotation
+                                    .match(Named.class)
+                                    .where(named -> named.value().equals("firstValue")))
                         .build()),
             "Must not throw IllegalStateException when there is one option");
     assertNotNull(result, "Result must not be null");
