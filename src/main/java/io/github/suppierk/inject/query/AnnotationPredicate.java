@@ -23,97 +23,54 @@
 
 package io.github.suppierk.inject.query;
 
-import io.github.suppierk.inject.AnnotationWrapper;
 import java.lang.annotation.Annotation;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
-/**
- * Predicate to allow searching for a specific annotation with specific member values.
- *
- * <p>Member value consists of annotation method name and its value.
- */
-public final class AnnotationPredicate implements Predicate<AnnotationWrapper> {
-  private final boolean exactMatch;
-  private final Class<? extends Annotation> annotationClass;
-  private final Map<String, Object> memberValues;
+/** Predicate to allow searching for a specific annotation with specific member values. */
+public final class AnnotationPredicate<T extends Annotation> implements Predicate<Annotation> {
+  private final Class<T> annotationClass;
+  private final Predicate<T> annotationMembersPredicate;
 
   /**
    * Hidden constructor.
    *
-   * @param exactMatch defines whether all member values must be present or only some of them
    * @param annotationClass to match against
-   * @param memberValues to match against
+   * @param annotationMembersPredicate to match against
    */
-  private AnnotationPredicate(
-      boolean exactMatch,
-      Class<? extends Annotation> annotationClass,
-      Map<String, Object> memberValues) {
-    this.exactMatch = exactMatch;
+  private AnnotationPredicate(Class<T> annotationClass, Predicate<T> annotationMembersPredicate) {
     this.annotationClass = annotationClass;
-    this.memberValues = Map.copyOf(memberValues);
+    this.annotationMembersPredicate = annotationMembersPredicate;
   }
 
   /** {@inheritDoc} */
   @Override
-  public boolean test(AnnotationWrapper annotationWrapper) {
-    if (annotationWrapper == null) {
-      return false;
-    }
-
-    if (!annotationClass.equals(annotationWrapper.annotation().annotationType())) {
-      return false;
-    }
-
-    if (exactMatch) {
-      return memberValues.equals(annotationWrapper.memberValues());
-    }
-
-    for (Map.Entry<String, Object> memberValueEntry : memberValues.entrySet()) {
-      if (!memberValueEntry
-          .getValue()
-          .equals(annotationWrapper.memberValues().get(memberValueEntry.getKey()))) {
-        return false;
-      }
-    }
-
-    return true;
+  @SuppressWarnings("unchecked")
+  public boolean test(Annotation annotation) {
+    return annotation != null
+        && annotationClass.equals(annotation.annotationType())
+        && annotationMembersPredicate.test((T) annotation);
   }
 
   /** {@inheritDoc} */
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof AnnotationPredicate)) return false;
-    AnnotationPredicate that = (AnnotationPredicate) o;
-    return exactMatch == that.exactMatch
-        && Objects.equals(annotationClass, that.annotationClass)
-        && Objects.equals(memberValues, that.memberValues);
+    AnnotationPredicate<?> that = (AnnotationPredicate<?>) o;
+    return Objects.equals(annotationClass, that.annotationClass)
+        && Objects.equals(annotationMembersPredicate, that.annotationMembersPredicate);
   }
 
   /** {@inheritDoc} */
   @Override
   public int hashCode() {
-    return Objects.hash(exactMatch, annotationClass, memberValues);
+    return Objects.hash(annotationClass, annotationMembersPredicate);
   }
 
   /** {@inheritDoc} */
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder();
-
-    if (exactMatch) {
-      sb.append("Match exactly @").append(annotationClass.getSimpleName());
-    } else {
-      sb.append("Match similar to @").append(annotationClass.getSimpleName());
-    }
-
-    if (memberValues.isEmpty()) {
-      return sb.toString();
-    }
-
-    return sb.append(memberValues).toString();
+    return "Matches " + annotationClass.getName() + " annotation";
   }
 
   /**
@@ -131,80 +88,57 @@ public final class AnnotationPredicate implements Predicate<AnnotationWrapper> {
     }
 
     /**
-     * Sets predicate to match all member values.
+     * Sets predicate to match annotation.
      *
      * @param annotationClass to match
      * @return next step of the fluent builder
      * @throws IllegalArgumentException if class is {@code null}
      */
-    public AnnotationMembers exactly(Class<? extends Annotation> annotationClass) {
+    public <T extends Annotation> AnnotationMembersPredicate<T> match(Class<T> annotationClass) {
       if (annotationClass == null) {
         throw new IllegalArgumentException("annotationClass cannot be null");
       }
 
-      return new AnnotationMembers(true, annotationClass);
-    }
-
-    /**
-     * Sets predicate to match only defined member values.
-     *
-     * @param annotationClass to match
-     * @return next step of the fluent builder
-     * @throws IllegalArgumentException if class is {@code null}
-     */
-    public AnnotationMembers like(Class<? extends Annotation> annotationClass) {
-      if (annotationClass == null) {
-        throw new IllegalArgumentException("annotationClass cannot be null");
-      }
-
-      return new AnnotationMembers(false, annotationClass);
+      return new AnnotationMembersPredicate<>(annotationClass);
     }
   }
 
   /** End of the fluent builder chain to construct the predicate. */
-  public static final class AnnotationMembers {
-    private final boolean exactMatch;
-    private final Class<? extends Annotation> annotationClass;
-    private final Map<String, Object> memberValues;
+  public static final class AnnotationMembersPredicate<T extends Annotation> {
+    private final Class<T> annotationClass;
+    private Predicate<T> membersPredicate;
 
     /**
      * Internal constructor.
      *
-     * @param exactMatch defines whether all member values must be present or only some of them
      * @param annotationClass to match against
      */
-    private AnnotationMembers(boolean exactMatch, Class<? extends Annotation> annotationClass) {
-      this.exactMatch = exactMatch;
+    public AnnotationMembersPredicate(Class<T> annotationClass) {
       this.annotationClass = annotationClass;
-      this.memberValues = new ConcurrentHashMap<>();
+      this.membersPredicate = t -> true;
     }
 
     /**
-     * Defines annotation method name with expected value to match.
+     * Defines predicate to match annotation fields against expectations.
      *
-     * @param annotationMethodName to match
-     * @param annotationMethodValue to match
+     * @param membersPredicate to use for testing the annotation
      * @return this builder
-     * @throws IllegalArgumentException if any of the arguments is {@code null}
+     * @throws IllegalArgumentException if predicate is {@code null}
      */
-    public AnnotationMembers with(String annotationMethodName, Object annotationMethodValue) {
-      if (annotationMethodName == null || annotationMethodName.isBlank()) {
-        throw new IllegalArgumentException("annotationMethodName cannot be null or blank");
+    public AnnotationMembersPredicate<T> where(Predicate<T> membersPredicate) {
+      if (membersPredicate == null) {
+        throw new IllegalArgumentException("membersPredicate cannot be null");
       }
 
-      if (annotationMethodValue == null) {
-        throw new IllegalArgumentException("annotationMethodValue cannot be null");
-      }
-
-      memberValues.put(annotationMethodName, annotationMethodValue);
+      this.membersPredicate = membersPredicate;
       return this;
     }
 
     /**
      * @return ready to be used predicate
      */
-    public AnnotationPredicate build() {
-      return new AnnotationPredicate(exactMatch, annotationClass, memberValues);
+    public AnnotationPredicate<T> build() {
+      return new AnnotationPredicate<>(annotationClass, membersPredicate);
     }
   }
 }

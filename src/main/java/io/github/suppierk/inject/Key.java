@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
  */
 public final class Key<T> {
   private final Class<T> type;
-  private final Set<AnnotationWrapper> annotationWrappers;
+  private final Set<Annotation> annotations;
 
   public Key(Class<T> type, Set<Annotation> annotations) {
     if (type == null) {
@@ -47,9 +47,9 @@ public final class Key<T> {
     }
 
     if (annotations == null) {
-      this.annotationWrappers = Set.of();
+      this.annotations = Set.of();
     } else {
-      this.annotationWrappers =
+      this.annotations =
           annotations.stream()
               .map(
                   annotation -> {
@@ -60,7 +60,7 @@ public final class Key<T> {
                               + " is not a @Qualifier");
                     }
 
-                    return new AnnotationWrapper(annotation);
+                    return annotation;
                   })
               .collect(Collectors.toUnmodifiableSet());
     }
@@ -70,8 +70,8 @@ public final class Key<T> {
     return type;
   }
 
-  public Set<AnnotationWrapper> annotationWrappers() {
-    return annotationWrappers;
+  public Set<Annotation> annotations() {
+    return annotations;
   }
 
   @Override
@@ -81,13 +81,12 @@ public final class Key<T> {
     }
 
     Key<?> that = (Key<?>) o;
-    return Objects.equals(type, that.type)
-        && Objects.equals(annotationWrappers, that.annotationWrappers);
+    return Objects.equals(type, that.type) && Objects.equals(annotations, that.annotations);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(type, annotationWrappers);
+    return Objects.hash(type, annotations);
   }
 
   @Override
@@ -96,13 +95,11 @@ public final class Key<T> {
         "%s(%s%s)",
         Key.class.getSimpleName(),
         type.getName(),
-        annotationWrappers.isEmpty()
+        annotations.isEmpty()
             ? ""
             : String.format(
                 " as [%s]",
-                annotationWrappers.stream()
-                    .map(AnnotationWrapper::toString)
-                    .collect(Collectors.joining(", "))));
+                annotations.stream().map(Annotation::toString).collect(Collectors.joining(", "))));
   }
 
   /**
@@ -125,18 +122,18 @@ public final class Key<T> {
         firstIndent,
         ConsoleConstants.cyanBold(type.getName()),
         nestedIndent,
-        annotationWrappers().isEmpty()
+        annotations().isEmpty()
             ? ConsoleConstants.YAML_EMPTY_ARRAY
             : String.format(
                 "%n%s",
-                annotationWrappers().stream()
+                annotations().stream()
                     .map(
-                        annotationWrapper ->
+                        annotation ->
                             String.format(
                                 "%s%s'%s'",
                                 ConsoleConstants.indent(actualIndent + 1),
                                 ConsoleConstants.YAML_ITEM,
-                                annotationString(annotationWrapper.annotation())))
+                                annotationString(annotation)))
                     .collect(Collectors.joining(String.format("%n")))));
   }
 

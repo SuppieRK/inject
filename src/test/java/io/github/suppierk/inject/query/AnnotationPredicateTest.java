@@ -29,7 +29,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.suppierk.inject.AnnotationWrapper;
 import io.github.suppierk.mocks.CustomQualifier;
 import jakarta.inject.Named;
 import nl.jqno.equalsverifier.EqualsVerifier;
@@ -44,22 +43,20 @@ class AnnotationPredicateTest {
 
   @Test
   void toStringMustWorkAsExpected() {
-    final var likePredicate = AnnotationPredicate.annotationPredicate().like(Named.class).build();
+    final var likePredicate = AnnotationPredicate.annotationPredicate().match(Named.class).build();
     assertEquals(
-        "Match similar to @Named",
+        "Matches jakarta.inject.Named annotation",
         likePredicate.toString(),
         "toString() must return expected value");
 
-    final var exactPredicate =
-        AnnotationPredicate.annotationPredicate().exactly(Named.class).build();
+    final var likePredicateWithMemberPredicate =
+        AnnotationPredicate.annotationPredicate()
+            .match(Named.class)
+            .where(named -> named.value().equals("test"))
+            .build();
     assertEquals(
-        "Match exactly @Named", exactPredicate.toString(), "toString() must return expected value");
-
-    final var likePredicateWithMemberValues =
-        AnnotationPredicate.annotationPredicate().like(Named.class).with("value", "test").build();
-    assertEquals(
-        "Match similar to @Named{value=test}",
-        likePredicateWithMemberValues.toString(),
+        "Matches jakarta.inject.Named annotation",
+        likePredicateWithMemberPredicate.toString(),
         "toString() must return expected value");
   }
 
@@ -67,94 +64,43 @@ class AnnotationPredicateTest {
   @CustomQualifier
   @Named(value = "predicateTest")
   class Predicate {
-    final AnnotationWrapper namedAnnotationWrapper =
-        new AnnotationWrapper(getClass().getAnnotation(Named.class));
-    final AnnotationWrapper customAnnotationWrapper =
-        new AnnotationWrapper(getClass().getAnnotation(CustomQualifier.class));
+    final Named namedAnnotation = getClass().getAnnotation(Named.class);
+    final CustomQualifier customAnnotation = getClass().getAnnotation(CustomQualifier.class);
 
     @Test
     void returnsFalseForNullWrapper() {
-      final var predicate = AnnotationPredicate.annotationPredicate().like(Named.class).build();
+      final var predicate = AnnotationPredicate.annotationPredicate().match(Named.class).build();
       assertFalse(predicate.test(null), "Null argument must return false");
     }
 
     @Test
     void returnsFalseForDifferentClass() {
-      final var predicate = AnnotationPredicate.annotationPredicate().like(Named.class).build();
-      assertFalse(predicate.test(customAnnotationWrapper), "Class mismatch must return false");
+      final var predicate = AnnotationPredicate.annotationPredicate().match(Named.class).build();
+      assertFalse(predicate.test(customAnnotation), "Class mismatch must return false");
     }
 
     @Test
-    void returnsFalseIfMemberValuesDoNotMatchExactly() {
-      final var predicate = AnnotationPredicate.annotationPredicate().exactly(Named.class).build();
-      assertFalse(
-          predicate.test(namedAnnotationWrapper),
-          "Missing member values during exact matching must return false");
-    }
-
-    @Test
-    void returnsTrueIfMemberValuesMatchExactly() {
+    void returnsTrueIfMemberValuesMatch() {
       final var predicate =
           AnnotationPredicate.annotationPredicate()
-              .exactly(Named.class)
-              .with("value", "predicateTest")
+              .match(Named.class)
+              .where(named -> named.value().equals("predicateTest"))
               .build();
       assertTrue(
-          predicate.test(namedAnnotationWrapper),
-          "Correct member values during exact matching must return true");
+          predicate.test(namedAnnotation),
+          "Correct member values during matching must return true");
     }
 
     @Test
-    void returnsTrueIfMemberValuesDoNotMatchForLikePredicate() {
-      final var predicate = AnnotationPredicate.annotationPredicate().like(Named.class).build();
-      assertTrue(
-          predicate.test(namedAnnotationWrapper),
-          "Missing member values during similar matching must return true");
-    }
-
-    @Test
-    void returnsTrueIfMemberValuesMatchForLikePredicate() {
+    void returnsFalseIfMemberValuesDoNotMatch() {
       final var predicate =
           AnnotationPredicate.annotationPredicate()
-              .like(Named.class)
-              .with("value", "predicateTest")
-              .build();
-      assertTrue(
-          predicate.test(namedAnnotationWrapper),
-          "Correct member values during similar matching must return true");
-    }
-
-    @Test
-    void returnsFalseIfMemberValuesDoNotMatchForLikePredicate() {
-      final var predicate =
-          AnnotationPredicate.annotationPredicate().like(Named.class).with("value", 1).build();
-      assertFalse(
-          predicate.test(namedAnnotationWrapper),
-          "Unexpected member values during similar matching must return false");
-    }
-
-    @Test
-    void returnsFalseIfMemberValueIsMissing() {
-      final var predicate =
-          AnnotationPredicate.annotationPredicate()
-              .like(Named.class)
-              .with("other", "predicateTest")
+              .match(Named.class)
+              .where(named -> named.value().equals("randomValue"))
               .build();
       assertFalse(
-          predicate.test(namedAnnotationWrapper),
-          "Incorrect member values during similar matching must return false");
-    }
-
-    @Test
-    void returnsFalseIfMemberValueIsMissingInCustom() {
-      final var predicate =
-          AnnotationPredicate.annotationPredicate()
-              .like(CustomQualifier.class)
-              .with("other", "predicateTest")
-              .build();
-      assertFalse(
-          predicate.test(customAnnotationWrapper),
-          "Unexpected member values during similar matching must return false");
+          predicate.test(namedAnnotation),
+          "Incorrect member values during matching must return false");
     }
   }
 
@@ -170,35 +116,23 @@ class AnnotationPredicateTest {
       final var builder = AnnotationPredicate.annotationPredicate();
       assertThrows(
           IllegalArgumentException.class,
-          () -> builder.exactly(null),
-          "Builder must not accept null class");
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> builder.like(null),
+          () -> builder.match(null),
           "Builder must not accept null class");
     }
 
     @Test
     void doesNotAcceptNullMemberValues() {
-      final var builder = AnnotationPredicate.annotationPredicate().exactly(Named.class);
+      final var builder = AnnotationPredicate.annotationPredicate().match(Named.class);
 
       assertThrows(
           IllegalArgumentException.class,
-          () -> builder.with(null, "value"),
-          "Builder must not accept null annotation method name");
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> builder.with("   ", "value"),
-          "Builder must not accept blank annotation method name");
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> builder.with("name", null),
-          "Builder must not accept null annotation method value");
+          () -> builder.where(null),
+          "Builder must not accept null predicate");
     }
 
     @Test
     void returnsNonNullPredicate() {
-      final var builder = AnnotationPredicate.annotationPredicate().like(Named.class);
+      final var builder = AnnotationPredicate.annotationPredicate().match(Named.class);
 
       assertNotNull(builder.build(), "Predicate must not be null");
     }
