@@ -204,7 +204,7 @@ public final class Injector implements Closeable {
     final var keys = new ArrayList<Key<T>>();
 
     for (Key<?> key : providers.keySet()) {
-      if (key.type().isAssignableFrom(clazz) && keyAnnotationsPredicate.test(key)) {
+      if (clazz.isAssignableFrom(key.type()) && keyAnnotationsPredicate.test(key)) {
         keys.add((Key<T>) key);
       }
     }
