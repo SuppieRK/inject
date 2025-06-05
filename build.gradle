@@ -14,7 +14,7 @@ plugins {
 	// Utility
 	id 'jacoco'
 	id 'info.solidsoft.pitest' version '1.15.0'
-	id 'com.diffplug.spotless' version '7.0.3'
+	id 'com.diffplug.spotless' version '7.0.4'
 	id 'org.sonarqube' version '6.2.0.5505'
 }
 
@@ -43,7 +43,7 @@ test {
 
 java {
 	// Aligned with the version of Java Jakarta dependency is built with
-	def version = JavaVersion.VERSION_11
+	def version = JavaVersion.VERSION_17
 
 	sourceCompatibility = version.toString()
 	targetCompatibility = version.toString()
