@@ -25,20 +25,22 @@ methods outputs should be exposed to other classes.
 
 ## [How to add?](https://mvnrepository.com/artifact/io.github.suppierk/inject)
 
+> Starting from 3.0.0 this library uses Java 17
+
 - **Maven**
 
 ```xml
 <dependency>
     <groupId>io.github.suppierk</groupId>
     <artifactId>inject</artifactId>
-    <version>2.0.1</version>
+    <version>3.0.0</version>
 </dependency>
 ```
 
 - **Gradle** (_works for both Groovy and Kotlin_)
 
 ```groovy
-implementation("io.github.suppierk:inject:2.0.1")
+implementation("io.github.suppierk:inject:3.0.0")
 ```
 
 [![SonarCloud](https://sonarcloud.io/images/project_badges/sonarcloud-orange.svg)](https://sonarcloud.io/summary/overall?id=SuppieRK_inject)

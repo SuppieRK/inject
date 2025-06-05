@@ -53,7 +53,7 @@ class KeyTest {
                 "annotations:",
                 "  - '@"
                     + ConsoleConstants.yellow(Named.class.getName())
-                    + "(value=\"NamedAnnotation\")'")
+                    + "(\"NamedAnnotation\")'")
             .collect(Collectors.joining(String.format("%n")));
 
     final var clazz = NamedAnnotation.class;

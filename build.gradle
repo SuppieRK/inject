@@ -43,7 +43,7 @@ test {
 
 java {
 	// Aligned with the version of Java Jakarta dependency is built with
-	def version = JavaVersion.VERSION_11
+	def version = JavaVersion.VERSION_17
 
 	sourceCompatibility = version.toString()
 	targetCompatibility = version.toString()
