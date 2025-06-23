@@ -9,7 +9,7 @@ plugins {
 	id 'java-library'
 
 	// Publishing
-	id 'com.vanniktech.maven.publish' version '0.32.0'
+	id 'com.vanniktech.maven.publish' version '0.33.0'
 
 	// Utility
 	id 'jacoco'
