@@ -782,7 +782,7 @@ public final class Injector implements Closeable {
      * @param node which corresponds to the key
      */
     protected void checkForCycle(Key<?> key, Node<?> node) {
-      checkForCycle(key, node, new HashSet<>());
+      checkForCycle(key, node, new HashSet<>(), new HashSet<>());
     }
 
     /**
@@ -799,7 +799,17 @@ public final class Injector implements Closeable {
      * @param visited set of nodes for validation
      * @throws IllegalArgumentException if the cycle was found
      */
-    private void checkForCycle(Key<?> key, Node<?> node, Set<Key<?>> visited) {
+    private void checkForCycle(
+        Key<?> key, Node<?> node, Set<Key<?>> visiting, Set<Key<?>> processed) {
+      if (visiting.contains(key)) {
+        throw new IllegalArgumentException(String.format(CYCLE_TEMPLATE, key));
+      }
+
+      if (processed.contains(key)) {
+        return;
+      }
+
+      visiting.add(key);
       final var isNestedNonStaticClass = isNestedNonStaticClass(key.type());
 
       for (Key<?> consumedKey : node.requiredParentKeys()) {
@@ -812,16 +822,17 @@ public final class Injector implements Closeable {
           continue;
         }
 
-        if (visited.contains(consumedKey)) {
+        if (visiting.contains(consumedKey)) {
           throw new IllegalArgumentException(String.format(CYCLE_TEMPLATE, consumedKey));
-        } else {
-          visited.add(consumedKey);
+        }
 
-          if (providers.containsKey(consumedKey)) {
-            checkForCycle(consumedKey, providers.get(consumedKey), visited);
-          }
+        if (providers.containsKey(consumedKey)) {
+          checkForCycle(consumedKey, providers.get(consumedKey), visiting, processed);
         }
       }
+
+      visiting.remove(key);
+      processed.add(key);
     }
 
     /**
