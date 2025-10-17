@@ -354,7 +354,16 @@ public final class Injector implements Closeable {
   private static List<Key<?>> topologicallySortedKeys(Map<Key<?>, Node<?>> providers) {
     final var inDegreeMap = new HashMap<Key<?>, Integer>(providers.size());
     for (Map.Entry<Key<?>, Node<?>> entry : providers.entrySet()) {
-      inDegreeMap.put(entry.getKey(), entry.getValue().requiredParentKeys().size());
+      final var parents = entry.getValue().requiredParentKeys();
+      int inbound = 0;
+
+      for (Key<?> parent : parents) {
+        if (providers.containsKey(parent)) {
+          inbound++;
+        }
+      }
+
+      inDegreeMap.put(entry.getKey(), inbound);
     }
 
     final var nodesWithNoIncomingEdges = new ArrayDeque<Key<?>>(providers.size());
@@ -370,11 +379,22 @@ public final class Injector implements Closeable {
       topologicalOrder.add(key);
 
       for (Map.Entry<Key<?>, Node<?>> entry : providers.entrySet()) {
-        if (entry.getValue().requiredParentKeys().contains(key)) {
-          inDegreeMap.put(entry.getKey(), inDegreeMap.get(entry.getKey()) - 1);
+        final var currentParents = entry.getValue().requiredParentKeys();
 
-          if (inDegreeMap.get(entry.getKey()) == 0) {
-            nodesWithNoIncomingEdges.add(entry.getKey());
+        if (currentParents.contains(key)) {
+          if (!providers.containsKey(entry.getKey())) {
+            continue;
+          }
+
+          final var previous = inDegreeMap.get(entry.getKey());
+
+          if (previous > 0) {
+            final int updated = previous - 1;
+            inDegreeMap.put(entry.getKey(), updated);
+
+            if (updated == 0) {
+              nodesWithNoIncomingEdges.add(entry.getKey());
+            }
           }
         }
       }
