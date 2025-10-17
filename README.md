@@ -45,14 +45,14 @@ methods outputs should be exposed to other classes.
 <dependency>
     <groupId>io.github.suppierk</groupId>
     <artifactId>inject</artifactId>
-    <version>3.0.0</version>
+    <version>3.0.1</version>
 </dependency>
 ```
 
 - **Gradle** (_works for both Groovy and Kotlin_)
 
 ```groovy
-implementation("io.github.suppierk:inject:3.0.0")
+implementation("io.github.suppierk:inject:3.0.1")
 ```
 
 ## Hello, World!
