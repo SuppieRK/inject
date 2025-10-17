@@ -126,5 +126,3 @@ public class HelloWorld {
 ./gradlew --no-daemon spotlessCheck build # CI parity fast path
 ./gradlew --no-daemon pitest      # Mutation testing (slow, run before PRs)
 ```
-
-Published Javadoc: [javadoc.io/doc/io.github.suppierk/inject](https://javadoc.io/doc/io.github.suppierk/inject)
