@@ -55,8 +55,6 @@ methods outputs should be exposed to other classes.
 implementation("io.github.suppierk:inject:3.0.0")
 ```
 
-[![SonarCloud](https://sonarcloud.io/images/project_badges/sonarcloud-orange.svg)](https://sonarcloud.io/summary/overall?id=SuppieRK_inject)
-
 ## Hello, World!
 
 ```java
