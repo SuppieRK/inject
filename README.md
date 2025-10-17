@@ -1,5 +1,12 @@
 # Inject
 
+[![Build status](https://github.com/SuppieRK/inject/actions/workflows/build.yml/badge.svg)](https://github.com/SuppieRK/inject/actions/workflows/build.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.suppierk/inject.svg)](https://search.maven.org/artifact/io.github.suppierk/inject)
+[![Javadoc](https://javadoc.io/badge2/io.github.suppierk/inject/javadoc.svg)](https://javadoc.io/doc/io.github.suppierk/inject)
+[![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=SuppieRK_inject&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=SuppieRK_inject)
+[![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=SuppieRK_inject&metric=coverage)](https://sonarcloud.io/summary/new_code?id=SuppieRK_inject)
+[![SonarCloud Maintainability](https://sonarcloud.io/api/project_badges/measure?project=SuppieRK_inject&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=SuppieRK_inject)
+
 > The work on this software project is in no way associated with my employer nor with the role I'm having at my
 > employer.
 >
@@ -27,9 +34,14 @@ methods outputs should be exposed to other classes.
 
 > Starting from 3.0.0 this library uses Java 17
 
+| Inject Version | Java | Jakarta Inject | Notes                                      |
+|----------------|------|----------------|--------------------------------------------|
+| 3.0.x          | 17+  | 2.0.x          | Current branch, Java module system enabled |
+
 - **Maven**
 
 ```xml
+
 <dependency>
     <groupId>io.github.suppierk</groupId>
     <artifactId>inject</artifactId>
@@ -84,6 +96,21 @@ public class HelloWorld {
 }
 ```
 
+## Core concepts
+
+- **Bindings** – call `Injector.injector().add(...)` with classes or instances. Constructors marked with `@Inject` (or
+  the default constructor) become injectable bindings.
+- **Injection** – dependencies are resolved via constructor or field injection. Collections and maps are intentionally
+  unsupported; explicit providers keep resolution deterministic.
+- **`@Provides` methods** – factory methods on registered classes expose additional bindings. Annotate with `@Singleton`
+  to memoize results.
+- **Scopes** – classes or `@Provides` return types marked with `@Singleton` produce a single memoized instance. Others
+  are created on demand.
+- **Error handling** – missing or ambiguous bindings raise `IllegalArgumentException` at build time; runtime lookups
+  throw `NoSuchElementException`. `Injector.toString()` prints the graph in YAML for debugging.
+- **Circular dependencies** – direct cycles fail fast with `Found cycle` errors. Break loops by injecting `Provider<T>`/
+  `Supplier<T>` on at least one edge, or restructure into singleton factories.
+
 ## Known problems
 
 - Do not invoke `Provider.get()` or `Supplier.get()` in the constructor of the object which is a part of the dependency
@@ -93,3 +120,13 @@ public class HelloWorld {
 
 - Visit our [Wiki](https://github.com/SuppieRK/inject/wiki) for more in-depth look at the features.
 - Take a look at the complete stack proposal in [JIQS](https://github.com/SuppieRK/jiqs) repository.
+
+## Contributing locally
+
+```shell
+./gradlew spotlessApply           # Format sources
+./gradlew --no-daemon spotlessCheck build # CI parity fast path
+./gradlew --no-daemon pitest      # Mutation testing (slow, run before PRs)
+```
+
+Published Javadoc: [javadoc.io/doc/io.github.suppierk/inject](https://javadoc.io/doc/io.github.suppierk/inject)
