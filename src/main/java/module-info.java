@@ -1,3 +1,4 @@
+/** Lightweight dependency injection module. */
 open module io.github.suppierk.inject {
   requires jakarta.inject;
   requires static transitive org.jspecify;

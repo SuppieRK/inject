@@ -4,7 +4,7 @@
  * Copyright 2024 Roman Khlebnov
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
- * and associated documentation files (the “Software”), to deal in the Software without
+ * and associated documentation files (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify, merge, publish,
  * distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
@@ -12,7 +12,7 @@
  * The above copyright notice and this permission notice shall be included in all copies or
  * substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
@@ -34,6 +34,13 @@ public final class FieldInformation {
   private final Key<?> key;
   private final @Nullable Class<?> wrapper;
 
+  /**
+   * Default constructor.
+   *
+   * @param field reflected field
+   * @param key dependency key used to resolve field value
+   * @param wrapper wrapper type, if field uses a supported lazy wrapper
+   */
   public FieldInformation(@Nullable Field field, @Nullable Key<?> key, @Nullable Class<?> wrapper) {
     if (field == null) {
       throw new IllegalArgumentException("Field is null");
@@ -48,15 +55,24 @@ public final class FieldInformation {
     this.wrapper = wrapper;
   }
 
+  /**
+   * @return reflected field
+   */
   public Field getField() {
     return field;
   }
 
+  /**
+   * @return dependency key used to resolve field value
+   */
   @SuppressWarnings("squid:S1452")
   public Key<?> getQualifierKey() {
     return key;
   }
 
+  /**
+   * @return wrapper type, or {@code null} when the field is injected directly
+   */
   @SuppressWarnings("squid:S1452")
   public @Nullable Class<?> getWrapper() {
     return wrapper;

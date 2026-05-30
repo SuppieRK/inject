@@ -4,7 +4,7 @@
  * Copyright 2024 Roman Khlebnov
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
- * and associated documentation files (the “Software”), to deal in the Software without
+ * and associated documentation files (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify, merge, publish,
  * distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
@@ -12,7 +12,7 @@
  * The above copyright notice and this permission notice shall be included in all copies or
  * substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
@@ -48,8 +48,13 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
           .thenComparing(info -> info.getField().getDeclaringClass().getName())
           .thenComparing(info -> info.getField().getName());
 
+  /** Key of the factory/configuration class containing the provider method. */
   protected final Key<?> classKey;
+
+  /** Provider method used to instantiate new values. */
   protected final Method method;
+
+  /** Class returned by the provider method. */
   protected final Class<T> methodReturnClass;
 
   /**
@@ -110,6 +115,9 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
     return classKey;
   }
 
+  /**
+   * @return key of the factory/configuration class containing the provider method
+   */
   @SuppressWarnings("squid:S1452")
   public Key<?> getClassKey() {
     return classKey;
