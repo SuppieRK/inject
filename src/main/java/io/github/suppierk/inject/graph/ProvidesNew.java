@@ -30,9 +30,11 @@ import io.github.suppierk.inject.ParameterInformation;
 import io.github.suppierk.utils.ConsoleConstants;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Defines a node which instantiates a new class instance by calling a method of the existing
@@ -41,6 +43,11 @@ import java.util.stream.Collectors;
  * @param <T> is the type of the instance this node refers to
  */
 public class ProvidesNew<T> extends ReflectionNode<T> {
+  private static final Comparator<FieldInformation> FIELD_INFORMATION_COMPARATOR =
+      Comparator.comparing((FieldInformation info) -> info.getQualifierKey().type().getName())
+          .thenComparing(info -> info.getField().getDeclaringClass().getName())
+          .thenComparing(info -> info.getField().getName());
+
   protected final Key<?> classKey;
   protected final Method method;
   protected final Class<T> methodReturnClass;
@@ -57,12 +64,28 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
    * @throws IllegalArgumentException if class key or method are {@code null}
    */
   public ProvidesNew(
-      InjectorReference injectorReference,
+      @Nullable InjectorReference injectorReference,
+      @Nullable Key<?> classKey,
+      @Nullable Method method,
+      @Nullable Class<T> methodReturnClass,
+      @Nullable List<ParameterInformation> parametersInformation,
+      @Nullable List<FieldInformation> fieldsInformation) {
+    this(
+        requireClassKey(classKey),
+        injectorReference,
+        method,
+        methodReturnClass,
+        parametersInformation,
+        fieldsInformation);
+  }
+
+  private ProvidesNew(
       Key<?> classKey,
-      Method method,
-      Class<T> methodReturnClass,
-      List<ParameterInformation> parametersInformation,
-      List<FieldInformation> fieldsInformation) {
+      @Nullable InjectorReference injectorReference,
+      @Nullable Method method,
+      @Nullable Class<T> methodReturnClass,
+      @Nullable List<ParameterInformation> parametersInformation,
+      @Nullable List<FieldInformation> fieldsInformation) {
     super(injectorReference, parametersInformation, fieldsInformation, classKey);
 
     if (method == null) {
@@ -79,6 +102,15 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
   }
 
   @SuppressWarnings("squid:S1452")
+  private static Key<?> requireClassKey(@Nullable Key<?> classKey) {
+    if (classKey == null) {
+      throw new IllegalArgumentException("Class key is null");
+    }
+
+    return classKey;
+  }
+
+  @SuppressWarnings("squid:S1452")
   public Key<?> getClassKey() {
     return classKey;
   }
@@ -91,7 +123,12 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
 
     try {
       if (method.trySetAccessible()) {
-        return injectFields((T) method.invoke(objectInstance, createArguments()));
+        final var provided = (T) method.invoke(objectInstance, createArguments());
+        if (provided == null) {
+          throw new IllegalArgumentException("Provider returned null");
+        }
+
+        return injectFields(provided);
       } else {
         throw new IllegalAccessException(
             String.format(
@@ -124,7 +161,7 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
 
   /** {@inheritDoc} */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof ProvidesNew)) return false;
     if (!super.equals(o)) return false;
     ProvidesNew<?> that = (ProvidesNew<?>) o;
@@ -190,6 +227,7 @@ public class ProvidesNew<T> extends ReflectionNode<T> {
                 : String.format(
                     "%n%s",
                     fieldsInformation().stream()
+                        .sorted(FIELD_INFORMATION_COMPARATOR)
                         .map(
                             info -> info.getQualifierKey().toYamlString(true, indentationLevel + 2))
                         .collect(Collectors.joining(String.format("%n"))))));

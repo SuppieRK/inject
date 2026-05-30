@@ -25,6 +25,7 @@ package io.github.suppierk.inject;
 
 import io.github.suppierk.inject.graph.Node;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Value class which holds a reference to a particular instance of {@link Injector}.
@@ -37,7 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 @SuppressWarnings({"javaarchitecture:S7091", "javaarchitecture:S7027"})
 public final class InjectorReference {
-  private final AtomicReference<Injector> reference;
+  private final AtomicReference<@Nullable Injector> reference;
 
   /** Default constructor. */
   public InjectorReference() {
@@ -48,9 +49,9 @@ public final class InjectorReference {
    * Sets the reference to the injector using atomic CAS.
    *
    * @param injector to set
-   * @throws IllegalArgumentException if {@link Injector} instance to set is {@code null}
+   * @throws IllegalStateException if {@link Injector} instance to set is {@code null}
    */
-  public void set(Injector injector) {
+  public void set(@Nullable Injector injector) {
     if (injector == null) {
       throw new IllegalStateException("Injector to set is null");
     }
@@ -59,19 +60,30 @@ public final class InjectorReference {
   }
 
   /**
+   * Retrieves the referenced {@link Injector}.
+   *
+   * @return referenced injector
+   * @throws IllegalStateException if {@link #set(Injector)} has not been called yet
+   */
+  public Injector get() {
+    final var injector = reference.get();
+
+    if (injector == null) {
+      throw new IllegalStateException("No Injector available");
+    }
+
+    return injector;
+  }
+
+  /**
    * Retrieves dependency graph node by delegating a call to {@link Injector#getNode(Key)}.
    *
    * @param key of the dependency to fetch
    * @return a respective dependency graph node which instantiates this particular dependency
    * @param <T> is the type of the dependency
-   * @throws IllegalStateException because by the time this is called we expect {@link
-   *     #set(Injector)} to be called and reference to be set
+   * @throws IllegalStateException if {@link #set(Injector)} has not been called yet
    */
   public <T> Node<T> getNode(Key<T> key) {
-    if (reference.get() == null) {
-      throw new IllegalStateException("No Injector available");
-    }
-
-    return reference.get().getNode(key);
+    return get().getNode(key);
   }
 }

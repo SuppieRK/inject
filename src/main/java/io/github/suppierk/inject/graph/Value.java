@@ -28,6 +28,7 @@ import io.github.suppierk.utils.ConsoleConstants;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Defines dependency node with already instantiated value.
@@ -45,8 +46,16 @@ public final class Value<T> extends Node<T> {
    * @param instance to set
    * @throws IllegalArgumentException if the value is {@code null}
    */
-  public Value(InjectorReference injectorReference, T instance) {
-    this(injectorReference, instance, instanceOnCloseConsumer(instance));
+  @SuppressWarnings("squid:S6416")
+  public Value(@Nullable InjectorReference injectorReference, @Nullable T instance) {
+    super(injectorReference, Set.of());
+
+    if (instance == null) {
+      throw new IllegalArgumentException("Value is null");
+    }
+
+    this.instance = instance;
+    this.onCloseConsumer = instanceOnCloseConsumer(instance);
   }
 
   /**
@@ -57,7 +66,9 @@ public final class Value<T> extends Node<T> {
    * @param onCloseConsumer to clean yp resources
    * @throws IllegalArgumentException if the value is {@code null}
    */
-  private Value(InjectorReference injectorReference, T instance, Consumer<T> onCloseConsumer) {
+  @SuppressWarnings("squid:S6416")
+  private Value(
+      @Nullable InjectorReference injectorReference, T instance, Consumer<T> onCloseConsumer) {
     super(injectorReference, Set.of());
     this.instance = instance;
     this.onCloseConsumer = onCloseConsumer;
@@ -83,7 +94,7 @@ public final class Value<T> extends Node<T> {
 
   /** {@inheritDoc} */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof Value)) return false;
     Value<?> value = (Value<?>) o;
     return Objects.equals(this.instance, value.instance);
@@ -121,10 +132,6 @@ public final class Value<T> extends Node<T> {
    * @throws IllegalArgumentException if the value is {@code null}
    */
   private static <C> Consumer<C> instanceOnCloseConsumer(C instance) {
-    if (instance == null) {
-      throw new IllegalArgumentException("Value is null");
-    }
-
     @SuppressWarnings("unchecked")
     final Class<C> instanceClass = (Class<C>) instance.getClass();
     return createOnCloseConsumer(instanceClass);

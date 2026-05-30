@@ -26,14 +26,16 @@ package io.github.suppierk.inject;
 import java.lang.reflect.Parameter;
 import java.util.Objects;
 import java.util.StringJoiner;
+import org.jspecify.annotations.Nullable;
 
 /** Defines base information about specific class method parameter. */
 public final class ParameterInformation {
   private final Parameter parameter;
   private final Key<?> key;
-  private final Class<?> wrapper;
+  private final @Nullable Class<?> wrapper;
 
-  public ParameterInformation(Parameter parameter, Key<?> key, Class<?> wrapper) {
+  public ParameterInformation(
+      @Nullable Parameter parameter, @Nullable Key<?> key, @Nullable Class<?> wrapper) {
     if (parameter == null) {
       throw new IllegalArgumentException("Parameter is null");
     }
@@ -57,12 +59,12 @@ public final class ParameterInformation {
   }
 
   @SuppressWarnings("squid:S1452")
-  public Class<?> getWrapper() {
+  public @Nullable Class<?> getWrapper() {
     return wrapper;
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof ParameterInformation)) return false;
     ParameterInformation that = (ParameterInformation) o;
     return Objects.equals(parameter, that.parameter)

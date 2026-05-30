@@ -27,6 +27,7 @@ import io.github.suppierk.inject.InjectorReference;
 import io.github.suppierk.inject.Key;
 import io.github.suppierk.utils.ConsoleConstants;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Defines a node used for performing replacement operations.
@@ -46,7 +47,8 @@ public final class RefersTo<T> extends Node<T> {
    * @param injectorReference for dependency lookups
    * @param parentKey for integrity and cycle check lookups
    */
-  public RefersTo(InjectorReference injectorReference, Key<?> parentKey) {
+  @SuppressWarnings("squid:S6416")
+  public RefersTo(@Nullable InjectorReference injectorReference, @Nullable Key<?> parentKey) {
     super(injectorReference, singleton(parentKey));
   }
 
@@ -77,7 +79,7 @@ public final class RefersTo<T> extends Node<T> {
 
   /** {@inheritDoc} */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof RefersTo)) return false;
     return super.equals(o);
   }
@@ -110,7 +112,7 @@ public final class RefersTo<T> extends Node<T> {
    * @return a set consisting of a single element
    */
   @SuppressWarnings("squid:S1452")
-  private static Set<Key<?>> singleton(Key<?> key) {
+  private static Set<Key<?>> singleton(@Nullable Key<?> key) {
     if (key == null) {
       throw new IllegalArgumentException("Key is null");
     }

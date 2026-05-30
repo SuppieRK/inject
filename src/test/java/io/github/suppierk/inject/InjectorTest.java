@@ -79,7 +79,7 @@ class InjectorTest {
         .forClass(Injector.class)
         .withPrefabValues(
             Node.class, new Value<>(injectorReference, "A"), new Value<>(injectorReference, "B"))
-        .withIgnoredFields("currentInjector")
+        .withIgnoredFields("currentInjector", "closed")
         .verify();
   }
 
@@ -170,8 +170,15 @@ class InjectorTest {
   }
 
   @Test
-  void findOneReturnsNonEmptyOptionalForSingleOption() {
+  void findOneReturnsNonEmptyOptionalForSingleOption() throws NoSuchMethodException {
     final var injector = Injector.injector().add(TestValueProvider.class).build();
+    final var expectedKey =
+        new Key<>(
+            TestValue.class,
+            Set.of(
+                TestValueProvider.class
+                    .getDeclaredMethod("firstValue")
+                    .getAnnotation(Named.class)));
 
     final var result =
         assertDoesNotThrow(
@@ -189,6 +196,7 @@ class InjectorTest {
             "Must not throw IllegalStateException when there is one option");
     assertNotNull(result, "Result must not be null");
     assertTrue(result.isPresent(), "Result must be present");
+    assertEquals(expectedKey, result.orElseThrow(), "Result key must match the only matching key");
   }
 
   @Test
@@ -467,6 +475,20 @@ class InjectorTest {
           IllegalArgumentException.class,
           () -> builder.replace(OldValue.class, NewValue.class),
           "Replacing missing dependency must throw an exception");
+    }
+
+    @Test
+    void successfulObjectReplacementReturnsSameBuilder() {
+      final var original = new OldValue();
+      final var replacement = new NewValue();
+      final var builder = Injector.injector().add(original).build().copy();
+
+      assertSame(
+          builder,
+          assertDoesNotThrow(
+              () -> builder.replace(original, replacement),
+              "Replacement must not throw an exception"),
+          "Successful object replacement must return the same builder instance");
     }
 
     @Test

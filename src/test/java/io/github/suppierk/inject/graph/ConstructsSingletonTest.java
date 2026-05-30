@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.suppierk.inject.FieldInformation;
 import io.github.suppierk.inject.Injector;
@@ -54,6 +55,31 @@ class ConstructsSingletonTest {
         .withPrefabValues(Parameter.class, redParameter, blueParameter)
         .withIgnoredFields("injectorReference", "constructor", "memoized", "onCloseConsumer")
         .verify();
+  }
+
+  @Test
+  void nullConstructorArgumentThrowsException() {
+    final var injectorReference = new InjectorReference();
+    final var constructor = Value.constructor();
+    final var parameters = List.<ParameterInformation>of();
+    final var fields = List.<FieldInformation>of();
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new ConstructsSingleton<>(null, constructor, parameters, fields),
+        "Null injector reference must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new ConstructsSingleton<>(injectorReference, null, parameters, fields),
+        "Null constructor must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new ConstructsSingleton<>(injectorReference, constructor, null, fields),
+        "Null parameters information must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new ConstructsSingleton<>(injectorReference, constructor, parameters, null),
+        "Null fields information must throw an exception");
   }
 
   @Test

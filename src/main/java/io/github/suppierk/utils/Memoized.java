@@ -24,12 +24,14 @@
 package io.github.suppierk.utils;
 
 import jakarta.inject.Provider;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides simple implementation of the lazily computed value which gets evaluated once.
@@ -47,7 +49,7 @@ import java.util.stream.Stream;
 public final class Memoized<T> implements Provider<T>, Supplier<T> {
   private final Provider<T> provider;
   private final Lock lock;
-  private final AtomicReference<T> value;
+  private final AtomicReference<@Nullable T> value;
 
   /**
    * Default constructor.
@@ -55,7 +57,7 @@ public final class Memoized<T> implements Provider<T>, Supplier<T> {
    * @param provider to invoke to compute the value
    * @throws IllegalArgumentException if {@link Provider} is {@code null}
    */
-  private Memoized(Provider<T> provider) {
+  private Memoized(@Nullable Provider<T> provider) {
     if (provider == null) {
       throw new IllegalArgumentException("Provider is null");
     }
@@ -72,7 +74,8 @@ public final class Memoized<T> implements Provider<T>, Supplier<T> {
    * @return new {@link Memoized} instance
    * @param <T> is the type of the value
    */
-  public static <T> Memoized<T> memoizedProvider(Provider<T> provider) {
+  @SuppressWarnings("squid:S6416")
+  public static <T> Memoized<T> memoizedProvider(@Nullable Provider<T> provider) {
     return new Memoized<>(provider);
   }
 
@@ -84,7 +87,7 @@ public final class Memoized<T> implements Provider<T>, Supplier<T> {
    * @param <T> is the type of the value
    * @throws IllegalArgumentException if {@link Supplier} is {@code null}
    */
-  public static <T> Memoized<T> memoizedSupplier(Supplier<T> supplier) {
+  public static <T> Memoized<T> memoizedSupplier(@Nullable Supplier<T> supplier) {
     if (supplier == null) {
       throw new IllegalArgumentException("Supplier is null");
     }
@@ -128,7 +131,7 @@ public final class Memoized<T> implements Provider<T>, Supplier<T> {
       }
     }
 
-    return localRef;
+    return Objects.requireNonNull(localRef);
   }
 
   /**
@@ -165,8 +168,10 @@ public final class Memoized<T> implements Provider<T>, Supplier<T> {
    * @throws NullPointerException if value is evaluated and the given action is {@code null}
    */
   public void ifPresent(Consumer<T> action) {
-    if (isPresent()) {
-      action.accept(value.get());
+    final var localRef = value.get();
+
+    if (localRef != null) {
+      action.accept(localRef);
     }
   }
 
@@ -180,8 +185,10 @@ public final class Memoized<T> implements Provider<T>, Supplier<T> {
    *     no value is evaluated and the given empty-based action is {@code null}.
    */
   public void ifPresentOrElse(Consumer<? super T> action, Runnable emptyAction) {
-    if (isPresent()) {
-      action.accept(value.get());
+    final var localRef = value.get();
+
+    if (localRef != null) {
+      action.accept(localRef);
     } else {
       emptyAction.run();
     }
@@ -201,11 +208,7 @@ public final class Memoized<T> implements Provider<T>, Supplier<T> {
    * @return the memoized value as a {@code Stream}
    */
   public Stream<T> stream() {
-    if (isEmpty()) {
-      return Stream.empty();
-    } else {
-      return Stream.of(value.get());
-    }
+    return Stream.ofNullable(value.get());
   }
 
   /** {@inheritDoc} */

@@ -26,14 +26,15 @@ package io.github.suppierk.inject;
 import java.lang.reflect.Field;
 import java.util.Objects;
 import java.util.StringJoiner;
+import org.jspecify.annotations.Nullable;
 
 /** Defines base information about specific class field. */
 public final class FieldInformation {
   private final Field field;
   private final Key<?> key;
-  private final Class<?> wrapper;
+  private final @Nullable Class<?> wrapper;
 
-  public FieldInformation(Field field, Key<?> key, Class<?> wrapper) {
+  public FieldInformation(@Nullable Field field, @Nullable Key<?> key, @Nullable Class<?> wrapper) {
     if (field == null) {
       throw new IllegalArgumentException("Field is null");
     }
@@ -57,12 +58,12 @@ public final class FieldInformation {
   }
 
   @SuppressWarnings("squid:S1452")
-  public Class<?> getWrapper() {
+  public @Nullable Class<?> getWrapper() {
     return wrapper;
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof FieldInformation)) return false;
     FieldInformation that = (FieldInformation) o;
     return Objects.equals(field, that.field)

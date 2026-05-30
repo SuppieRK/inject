@@ -1,4 +1,5 @@
 import java.nio.charset.StandardCharsets
+import net.ltgt.gradle.errorprone.CheckSeverity
 
 plugins {
 	// IDE
@@ -11,11 +12,15 @@ plugins {
 	// Publishing
 	id 'com.vanniktech.maven.publish' version '0.36.0'
 
+	// https://plugins.gradle.org/plugin/net.ltgt.errorprone
+	id 'net.ltgt.errorprone' version '5.1.0'
+
 	// Utility
 	id 'jacoco'
 	id 'info.solidsoft.pitest' version '1.19.0'
 	id 'com.diffplug.spotless' version '8.6.0'
 	id 'org.sonarqube' version '7.3.0.8198'
+	id 'me.champeau.jmh' version '0.7.3'
 }
 
 group = "$GROUP"
@@ -29,6 +34,15 @@ repositories {
 dependencies {
 	// https://mvnrepository.com/artifact/jakarta.inject/jakarta.inject-api
 	api group: 'jakarta.inject', name: 'jakarta.inject-api', version: jakartaVersion
+
+	// https://mvnrepository.com/artifact/org.jspecify/jspecify
+	api group: 'org.jspecify', name: 'jspecify', version: jspecifyVersion
+
+	// https://mvnrepository.com/artifact/com.google.errorprone/error_prone_core
+	errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: errorProneVersion
+
+	// https://mvnrepository.com/artifact/com.uber.nullaway/nullaway
+	errorprone group: 'com.uber.nullaway', name: 'nullaway', version: nullAwayVersion
 
 	// https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter
 	testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter', version: jUnitVersion
@@ -74,7 +88,7 @@ jacocoTestReport {
 // Enable Spotless code formatting rules
 spotless {
 	java {
-		target '**/src/*/java/**/*.java'
+		target fileTree(dir: projectDir, includes: ['src/*/java/**/*.java'])
 
 		// Aligns with Intellij IDEA default settings
 		toggleOffOn('@formatter:off', '@formatter:on')
@@ -83,7 +97,7 @@ spotless {
 	}
 
 	groovyGradle {
-		target '**/*.gradle'
+		target files('build.gradle', 'settings.gradle')
 
 		greclipse()
 	}
@@ -95,6 +109,19 @@ tasks.withType(Copy).configureEach {
 }
 
 tasks.withType(JavaCompile).configureEach {
+	options.errorprone {
+		disableAllChecks = true
+		check("NullAway", CheckSeverity.ERROR)
+		option("NullAway:AnnotatedPackages", "io.github.suppierk")
+	}
+
+	// Include to disable NullAway on test and benchmark code
+	if (name.toLowerCase().contains("test") || name.toLowerCase().contains("jmh")) {
+		options.errorprone {
+			disable("NullAway")
+		}
+	}
+
 	options.encoding = StandardCharsets.UTF_8.name()
 	dependsOn(spotlessJavaCheck)
 }
@@ -105,6 +132,25 @@ pitest {
 	outputFormats = ['HTML']
 	timestampedReports = false
 	junit5PluginVersion = '1.2.1'
+}
+
+jmh {
+	String jmhIncludes = findProperty('jmhIncludes')
+	if (jmhIncludes != null) {
+		includes = [jmhIncludes]
+	}
+
+	jvmArgsAppend = ['-Xmx2G']
+	benchmarkMode = ['avgt']
+	timeUnit = 'ns'
+
+	warmup = '1s'
+	warmupIterations = 5
+
+	timeOnIteration = '1s'
+	iterations = 20
+
+	profilers = ['jfr']
 }
 
 sonar {

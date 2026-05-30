@@ -234,6 +234,10 @@ class KeyAnnotationsPredicateTest {
                       null));
       assertThrows(
           IllegalArgumentException.class, () -> builder.having((AnnotationPredicate<?>) null));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> builder.having(annotationPredicate -> null),
+          "Annotation query modifier must not return null");
     }
   }
 }

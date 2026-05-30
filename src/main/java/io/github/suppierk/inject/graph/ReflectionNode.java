@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Defines a baseline structure for the dependency graph nodes which can produce new object
@@ -55,17 +56,20 @@ public abstract class ReflectionNode<T> extends Node<T> {
    * @param extraParentKeys this node depends upon
    */
   protected ReflectionNode(
-      InjectorReference injectorReference,
-      List<ParameterInformation> parametersInformation,
-      List<FieldInformation> fieldsInformation,
-      Key<?>... extraParentKeys) {
+      @Nullable InjectorReference injectorReference,
+      @Nullable List<ParameterInformation> parametersInformation,
+      @Nullable List<FieldInformation> fieldsInformation,
+      Key<?> @Nullable ... extraParentKeys) {
     super(
         injectorReference,
         gatherParentKeys(parametersInformation, fieldsInformation, extraParentKeys));
+    final var checkedParametersInformation = Objects.requireNonNull(parametersInformation);
+    final var checkedFieldsInformation = Objects.requireNonNull(fieldsInformation);
     this.requiredParentKeys =
-        gatherRequiredParentKeys(parametersInformation, fieldsInformation, extraParentKeys);
-    this.parametersInformation = List.copyOf(parametersInformation);
-    this.fieldsInformation = List.copyOf(fieldsInformation);
+        gatherRequiredParentKeys(
+            checkedParametersInformation, checkedFieldsInformation, extraParentKeys);
+    this.parametersInformation = List.copyOf(checkedParametersInformation);
+    this.fieldsInformation = List.copyOf(checkedFieldsInformation);
   }
 
   public List<ParameterInformation> parametersInformation() {
@@ -114,6 +118,10 @@ public abstract class ReflectionNode<T> extends Node<T> {
    */
   @SuppressWarnings("squid:S3011")
   protected T injectFields(T instance) throws IllegalAccessException {
+    if (fieldsInformation().isEmpty()) {
+      return instance;
+    }
+
     for (FieldInformation fieldInformation : fieldsInformation()) {
       if (fieldInformation.getField().trySetAccessible()) {
         final var currentFieldNode =
@@ -137,7 +145,7 @@ public abstract class ReflectionNode<T> extends Node<T> {
 
   /** {@inheritDoc} */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof ReflectionNode)) return false;
     if (!super.equals(o)) return false;
     ReflectionNode<?> that = (ReflectionNode<?>) o;
@@ -162,9 +170,9 @@ public abstract class ReflectionNode<T> extends Node<T> {
    * @return an immutable set, truncated to the number of its elements
    */
   private static Set<Key<?>> gatherParentKeys(
-      List<ParameterInformation> parametersInformation,
-      List<FieldInformation> fieldsInformation,
-      Key<?>... extraParentKeys) {
+      @Nullable List<ParameterInformation> parametersInformation,
+      @Nullable List<FieldInformation> fieldsInformation,
+      Key<?> @Nullable ... extraParentKeys) {
     if (parametersInformation == null) {
       throw new IllegalArgumentException("parametersInformation is null");
     }
@@ -208,7 +216,7 @@ public abstract class ReflectionNode<T> extends Node<T> {
   private static Set<Key<?>> gatherRequiredParentKeys(
       List<ParameterInformation> parametersInformation,
       List<FieldInformation> fieldsInformation,
-      Key<?>... extraParentKeys) {
+      Key<?> @Nullable ... extraParentKeys) {
     final var result = new HashSet<Key<?>>(parametersInformation.size() + fieldsInformation.size());
 
     for (ParameterInformation parameterInformation : parametersInformation) {
@@ -236,7 +244,7 @@ public abstract class ReflectionNode<T> extends Node<T> {
    * @param clazz to check
    * @return {@code true}, if the {@link Class} is either {@link Provider} or {@link Supplier}
    */
-  public static boolean isNotSupportedWrapperClass(Class<?> clazz) {
+  public static boolean isNotSupportedWrapperClass(@Nullable Class<?> clazz) {
     return !Provider.class.equals(clazz) && !Supplier.class.equals(clazz);
   }
 }

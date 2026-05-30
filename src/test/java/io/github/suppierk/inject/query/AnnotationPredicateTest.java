@@ -121,6 +121,14 @@ class AnnotationPredicateTest {
     }
 
     @Test
+    void doesNotAcceptNullClassInMembersPredicateConstructor() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new AnnotationPredicate.AnnotationMembersPredicate<>(null),
+          "Annotation members predicate must not accept null class");
+    }
+
+    @Test
     void doesNotAcceptNullMemberValues() {
       final var builder = AnnotationPredicate.annotationPredicate().match(Named.class);
 

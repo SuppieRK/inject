@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 
 class InjectorCopyBuilderTest {
 
+  @Singleton
   static class Dependency {}
 
   @Singleton
