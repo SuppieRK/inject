@@ -1,3 +1,4 @@
+/** Utility classes used by the injector implementation. */
 @NullMarked
 package io.github.suppierk.utils;
 
