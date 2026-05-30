@@ -12,6 +12,7 @@ import jakarta.inject.Qualifier;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -22,7 +23,9 @@ import org.junit.jupiter.api.Test;
 class KeyTest {
   @Test
   void objectMethodsMustWorkAsExpected() {
-    EqualsVerifier.forClass(Key.class).verify();
+    EqualsVerifier.forClass(Key.class)
+        .withCachedHashCode("hashCode", "calculateHashCode", new Key<>(String.class, null))
+        .verify();
   }
 
   @Test
@@ -62,6 +65,24 @@ class KeyTest {
     final var actualYaml = key.toYamlString(false, 0);
 
     assertEquals(expectedYaml, actualYaml, "YAML string must match the expectation");
+  }
+
+  @Test
+  void toYamlStringMultipleAnnotationsMustHaveStableOrder() {
+    final var expectedYaml =
+        Stream.of(
+                "type: " + ConsoleConstants.cyanBold(String.class.getName()),
+                "annotations:",
+                "  - '@" + ConsoleConstants.yellow(AlphaQualifier.class.getName()) + "()'",
+                "  - '@" + ConsoleConstants.yellow(BetaQualifier.class.getName()) + "()'")
+            .collect(Collectors.joining(String.format("%n")));
+
+    final var clazz = MultipleStableQualifierAnnotations.class;
+    final var alphaQualifier = clazz.getAnnotation(AlphaQualifier.class);
+    final var betaQualifier = clazz.getAnnotation(BetaQualifier.class);
+    final var key = new Key<>(String.class, Set.of(betaQualifier, alphaQualifier));
+
+    assertEquals(expectedYaml, key.toYamlString(false, 0), "YAML string must match expectation");
   }
 
   @Test
@@ -127,6 +148,17 @@ class KeyTest {
     }
 
     @Test
+    void constructorFailsForNullAnnotationElement() {
+      final var annotations = new HashSet<Annotation>();
+      annotations.add(null);
+
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new Key<>(String.class, annotations),
+          "Null annotation element must throw an exception");
+    }
+
+    @Test
     void constructorForClassMustWorkAsExpected() {
       final var clazz = String.class;
 
@@ -178,6 +210,18 @@ class KeyTest {
       assertNotNull(key.toString(), "toString must not be null");
     }
   }
+
+  @Qualifier
+  @Retention(RetentionPolicy.RUNTIME)
+  @interface AlphaQualifier {}
+
+  @Qualifier
+  @Retention(RetentionPolicy.RUNTIME)
+  @interface BetaQualifier {}
+
+  @AlphaQualifier
+  @BetaQualifier
+  static class MultipleStableQualifierAnnotations {}
 
   @Qualifier
   @Retention(RetentionPolicy.RUNTIME)

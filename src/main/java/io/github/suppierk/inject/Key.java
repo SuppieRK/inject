@@ -26,9 +26,11 @@ package io.github.suppierk.inject;
 import io.github.suppierk.utils.ConsoleConstants;
 import jakarta.inject.Qualifier;
 import java.lang.annotation.Annotation;
+import java.util.Comparator;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Defines a map key for the qualified object lookup.
@@ -36,10 +38,15 @@ import java.util.stream.Collectors;
  * @param <T> is the type of the object
  */
 public final class Key<T> {
+  private static final Comparator<Annotation> ANNOTATION_COMPARATOR =
+      Comparator.comparing((Annotation annotation) -> annotation.annotationType().getName())
+          .thenComparing(Annotation::toString);
+
   private final Class<T> type;
   private final Set<Annotation> annotations;
+  private final int hashCode;
 
-  public Key(Class<T> type, Set<Annotation> annotations) {
+  public Key(@Nullable Class<T> type, @Nullable Set<@Nullable Annotation> annotations) {
     if (type == null) {
       throw new IllegalArgumentException("Type is null");
     } else {
@@ -53,6 +60,10 @@ public final class Key<T> {
           annotations.stream()
               .map(
                   annotation -> {
+                    if (annotation == null) {
+                      throw new IllegalArgumentException("Annotation is null");
+                    }
+
                     if (!annotation.annotationType().isAnnotationPresent(Qualifier.class)) {
                       throw new IllegalArgumentException(
                           "Annotation @"
@@ -64,6 +75,8 @@ public final class Key<T> {
                   })
               .collect(Collectors.toUnmodifiableSet());
     }
+
+    this.hashCode = calculateHashCode();
   }
 
   public Class<T> type() {
@@ -75,7 +88,7 @@ public final class Key<T> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof Key)) {
       return false;
     }
@@ -86,7 +99,16 @@ public final class Key<T> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(type, annotations);
+    return hashCode;
+  }
+
+  /**
+   * Used by EqualsVerify test
+   *
+   * @return pre-calculated hash code
+   */
+  private int calculateHashCode() {
+    return 31 * type.hashCode() + annotations.hashCode();
   }
 
   @Override
@@ -127,6 +149,7 @@ public final class Key<T> {
             : String.format(
                 "%n%s",
                 annotations().stream()
+                    .sorted(ANNOTATION_COMPARATOR)
                     .map(
                         annotation ->
                             String.format(

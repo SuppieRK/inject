@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.suppierk.inject.FieldInformation;
 import io.github.suppierk.inject.Injector;
@@ -68,6 +69,51 @@ class ProvidesSingletonTest {
         .withPrefabValues(Parameter.class, redParameter, blueParameter)
         .withIgnoredFields("injectorReference", "memoized", "onCloseConsumer")
         .verify();
+  }
+
+  @Test
+  void nullConstructorArgumentThrowsException() {
+    final var injectorReference = new InjectorReference();
+    final var qualifier = new Key<>(String.class, Set.of());
+    final var method = Value.method();
+    final var methodReturnClass = String.class;
+    final var parameters = List.<ParameterInformation>of();
+    final var fields = List.<FieldInformation>of();
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ProvidesSingleton<>(null, qualifier, method, methodReturnClass, parameters, fields),
+        "Null injector reference must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ProvidesSingleton<>(
+                injectorReference, null, method, methodReturnClass, parameters, fields),
+        "Null class key must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ProvidesSingleton<>(
+                injectorReference, qualifier, null, methodReturnClass, parameters, fields),
+        "Null method must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ProvidesSingleton<>(injectorReference, qualifier, method, null, parameters, fields),
+        "Null method return class must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ProvidesSingleton<>(
+                injectorReference, qualifier, method, methodReturnClass, null, fields),
+        "Null parameters information must throw an exception");
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ProvidesSingleton<>(
+                injectorReference, qualifier, method, methodReturnClass, parameters, null),
+        "Null fields information must throw an exception");
   }
 
   @Test

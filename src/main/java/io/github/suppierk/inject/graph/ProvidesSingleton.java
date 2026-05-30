@@ -31,6 +31,7 @@ import io.github.suppierk.utils.Memoized;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.function.Consumer;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Defines a node which calls {@link ProvidesNew} logic to instantiate the value and stores
@@ -56,12 +57,12 @@ public final class ProvidesSingleton<T> extends ProvidesNew<T> {
    * @throws IllegalArgumentException if class key or method are {@code null}
    */
   public ProvidesSingleton(
-      InjectorReference injectorReference,
-      Key<?> classKey,
-      Method method,
-      Class<T> methodReturnClass,
-      List<ParameterInformation> parametersInformation,
-      List<FieldInformation> fieldsInformation) {
+      @Nullable InjectorReference injectorReference,
+      @Nullable Key<?> classKey,
+      @Nullable Method method,
+      @Nullable Class<T> methodReturnClass,
+      @Nullable List<ParameterInformation> parametersInformation,
+      @Nullable List<FieldInformation> fieldsInformation) {
     this(
         injectorReference,
         classKey,
@@ -83,13 +84,13 @@ public final class ProvidesSingleton<T> extends ProvidesNew<T> {
    * @throws IllegalArgumentException if class key or method are {@code null}
    */
   private ProvidesSingleton(
-      InjectorReference injectorReference,
-      Key<?> classKey,
-      Method method,
-      Class<T> methodReturnClass,
+      @Nullable InjectorReference injectorReference,
+      @Nullable Key<?> classKey,
+      @Nullable Method method,
+      @Nullable Class<T> methodReturnClass,
       Consumer<T> onCloseConsumer,
-      List<ParameterInformation> parametersInformation,
-      List<FieldInformation> fieldsInformation) {
+      @Nullable List<ParameterInformation> parametersInformation,
+      @Nullable List<FieldInformation> fieldsInformation) {
     super(
         injectorReference,
         classKey,
@@ -128,7 +129,7 @@ public final class ProvidesSingleton<T> extends ProvidesNew<T> {
 
   /** {@inheritDoc} */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof ProvidesSingleton)) return false;
     return super.equals(o);
   }

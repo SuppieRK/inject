@@ -26,6 +26,7 @@ package io.github.suppierk.inject.query;
 import java.lang.annotation.Annotation;
 import java.util.Objects;
 import java.util.function.Predicate;
+import org.jspecify.annotations.Nullable;
 
 /** Predicate to allow searching for a specific annotation with specific member values. */
 public final class AnnotationPredicate<T extends Annotation> implements Predicate<Annotation> {
@@ -46,7 +47,7 @@ public final class AnnotationPredicate<T extends Annotation> implements Predicat
   /** {@inheritDoc} */
   @Override
   @SuppressWarnings("unchecked")
-  public boolean test(Annotation annotation) {
+  public boolean test(@Nullable Annotation annotation) {
     return annotation != null
         && annotationClass.equals(annotation.annotationType())
         && annotationMembersPredicate.test((T) annotation);
@@ -54,7 +55,7 @@ public final class AnnotationPredicate<T extends Annotation> implements Predicat
 
   /** {@inheritDoc} */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof AnnotationPredicate)) return false;
     AnnotationPredicate<?> that = (AnnotationPredicate<?>) o;
     return Objects.equals(annotationClass, that.annotationClass)
@@ -94,7 +95,8 @@ public final class AnnotationPredicate<T extends Annotation> implements Predicat
      * @return next step of the fluent builder
      * @throws IllegalArgumentException if class is {@code null}
      */
-    public <T extends Annotation> AnnotationMembersPredicate<T> match(Class<T> annotationClass) {
+    public <T extends Annotation> AnnotationMembersPredicate<T> match(
+        @Nullable Class<T> annotationClass) {
       if (annotationClass == null) {
         throw new IllegalArgumentException("annotationClass cannot be null");
       }
@@ -113,7 +115,11 @@ public final class AnnotationPredicate<T extends Annotation> implements Predicat
      *
      * @param annotationClass to match against
      */
-    public AnnotationMembersPredicate(Class<T> annotationClass) {
+    public AnnotationMembersPredicate(@Nullable Class<T> annotationClass) {
+      if (annotationClass == null) {
+        throw new IllegalArgumentException("annotationClass cannot be null");
+      }
+
       this.annotationClass = annotationClass;
       this.membersPredicate = t -> true;
     }
@@ -125,7 +131,7 @@ public final class AnnotationPredicate<T extends Annotation> implements Predicat
      * @return this builder
      * @throws IllegalArgumentException if predicate is {@code null}
      */
-    public AnnotationMembersPredicate<T> where(Predicate<T> membersPredicate) {
+    public AnnotationMembersPredicate<T> where(@Nullable Predicate<T> membersPredicate) {
       if (membersPredicate == null) {
         throw new IllegalArgumentException("membersPredicate cannot be null");
       }

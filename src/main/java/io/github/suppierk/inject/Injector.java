@@ -33,6 +33,7 @@ import io.github.suppierk.inject.graph.ReflectionNode;
 import io.github.suppierk.inject.graph.Value;
 import io.github.suppierk.inject.query.KeyAnnotationsPredicate;
 import io.github.suppierk.utils.ConsoleConstants;
+import io.github.suppierk.utils.Memoized;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Qualifier;
@@ -44,15 +45,17 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.util.AbstractMap;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -60,11 +63,15 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Main dependency injection functionality entry point.
@@ -80,6 +87,9 @@ public final class Injector implements Closeable {
   private static final String MULTIPLE_VALUES_TEMPLATE =
       "Multiple values available for %s and predicate %s";
   private static final String ALREADY_REPLACED_VALUE_TEMPLATE = "Already replaced: %s";
+  private static final String CAPTIVE_DEPENDENCY_TEMPLATE =
+      "Captive dependency detected: @Singleton %s depends directly on non-singleton %s. "
+          + "Mark %s as @Singleton, register it as an object, or inject Provider<%s>/Supplier<%s> instead.";
   private static final String CYCLE_TEMPLATE = "Found cycle: %s";
   private static final String MULTIPLE_INJECT_CONSTRUCTORS_TEMPLATE =
       "Multiple @Inject constructors found for class: %s";
@@ -96,9 +106,16 @@ public final class Injector implements Closeable {
       "Expected to have non-generic, plain class";
   private static final String NON_INSTANTIABLE_CLASS_TEMPLATE =
       "Class is abstract or an interface and cannot be instantiated";
+  private static final Comparator<Annotation> ANNOTATION_COMPARATOR =
+      Comparator.comparing((Annotation annotation) -> annotation.annotationType().getName())
+          .thenComparing(Annotation::toString);
+  private static final Comparator<Key<?>> KEY_COMPARATOR =
+      Comparator.comparing((Key<?> key) -> key.type().getName())
+          .thenComparing(Injector::annotationSortValue);
 
   private final Node<Injector> currentInjector;
   private final Map<Key<?>, Node<?>> providers;
+  private final AtomicBoolean closed;
 
   /**
    * Default constructor.
@@ -111,6 +128,7 @@ public final class Injector implements Closeable {
 
     this.providers = Map.copyOf(providers);
     this.currentInjector = new Value<>(injectorReference, Injector.this);
+    this.closed = new AtomicBoolean(false);
   }
 
   /**
@@ -123,7 +141,7 @@ public final class Injector implements Closeable {
    * @return initialized instance
    * @throws IllegalArgumentException if the class argument is {@code null}
    */
-  public <T> T get(Class<T> clazz) {
+  public <T> T get(@Nullable Class<T> clazz) {
     if (clazz == null) {
       throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Class"));
     }
@@ -143,9 +161,9 @@ public final class Injector implements Closeable {
    * @param key to retrieve
    * @param <T> is the type of the instance
    * @return initialized instance
-   * @throws IllegalArgumentException if the class argument is {@code null}
+   * @throws IllegalArgumentException if the key argument is {@code null}
    */
-  public <T> T get(Key<T> key) {
+  public <T> T get(@Nullable Key<T> key) {
     if (key == null) {
       throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Key"));
     }
@@ -166,7 +184,7 @@ public final class Injector implements Closeable {
    * @throws IllegalStateException if there is more than one dependency match
    */
   public <T> Optional<Key<T>> findOne(
-      Class<T> clazz, KeyAnnotationsPredicate keyAnnotationsPredicate) {
+      @Nullable Class<T> clazz, @Nullable KeyAnnotationsPredicate keyAnnotationsPredicate) {
     final var keys = findAll(clazz, keyAnnotationsPredicate);
 
     if (keys.isEmpty()) {
@@ -192,7 +210,8 @@ public final class Injector implements Closeable {
    * @throws IllegalArgumentException if class or predicate arguments is {@code null}
    */
   @SuppressWarnings("unchecked")
-  public <T> List<Key<T>> findAll(Class<T> clazz, KeyAnnotationsPredicate keyAnnotationsPredicate) {
+  public <T> List<Key<T>> findAll(
+      @Nullable Class<T> clazz, @Nullable KeyAnnotationsPredicate keyAnnotationsPredicate) {
     if (clazz == null) {
       throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Class"));
     }
@@ -218,10 +237,10 @@ public final class Injector implements Closeable {
    * @param clazz to find
    * @return an {@link Optional} {@link Key} which can be used to retrieve dependency
    * @param <T> is the type of the instance
-   * @throws IllegalArgumentException if class or predicate arguments is {@code null}
+   * @throws IllegalArgumentException if class argument is {@code null}
    * @throws IllegalStateException if there is more than one dependency match
    */
-  public <T> Optional<Key<T>> findOne(Class<T> clazz) {
+  public <T> Optional<Key<T>> findOne(@Nullable Class<T> clazz) {
     return findOne(clazz, KeyAnnotationsPredicate.alwaysMatch());
   }
 
@@ -231,9 +250,9 @@ public final class Injector implements Closeable {
    * @param clazz to find
    * @return a {@link List} of {@link Key}s which can be used to retrieve dependencies
    * @param <T> is the type of the instance
-   * @throws IllegalArgumentException if class or predicate arguments is {@code null}
+   * @throws IllegalArgumentException if class argument is {@code null}
    */
-  public <T> List<Key<T>> findAll(Class<T> clazz) {
+  public <T> List<Key<T>> findAll(@Nullable Class<T> clazz) {
     return findAll(clazz, KeyAnnotationsPredicate.alwaysMatch());
   }
 
@@ -248,7 +267,7 @@ public final class Injector implements Closeable {
    */
   @SuppressWarnings("unchecked")
   <T> Node<T> getNode(Key<T> key) {
-    if (Injector.class.equals(key.type())) {
+    if (isUnqualifiedInjectorKey(key)) {
       return (Node<T>) currentInjector;
     }
 
@@ -276,6 +295,10 @@ public final class Injector implements Closeable {
   /** {@inheritDoc} */
   @Override
   public void close() {
+    if (!closed.compareAndSet(false, true)) {
+      return;
+    }
+
     final var keys = topologicallySortedKeys(providers);
 
     // Going in the reverse order to close dependencies
@@ -290,7 +313,7 @@ public final class Injector implements Closeable {
 
   /** {@inheritDoc} */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof Injector)) return false;
     Injector injector = (Injector) o;
     return Objects.equals(providers, injector.providers);
@@ -316,8 +339,19 @@ public final class Injector implements Closeable {
                         key ->
                             String.format(
                                 "%s%n%s",
-                                key.toYamlString(true, 1), providers.get(key).toYamlString(2)))
+                                key.toYamlString(true, 1),
+                                Objects.requireNonNull(providers.get(key)).toYamlString(2)))
                     .collect(Collectors.joining(String.format("%n%n")))));
+  }
+
+  /**
+   * Checks whether the key represents the injector's built-in unqualified self-reference.
+   *
+   * @param key to check
+   * @return {@code true} if the key requests {@link Injector} without qualifier annotations
+   */
+  private static boolean isUnqualifiedInjectorKey(Key<?> key) {
+    return Injector.class.equals(key.type()) && key.annotations().isEmpty();
   }
 
   /**
@@ -327,7 +361,7 @@ public final class Injector implements Closeable {
    * @return an immutable {@link Set} of {@link Qualifier} annotations
    */
   private static Set<Annotation> getQualifierAnnotations(Annotation[] annotations) {
-    if (annotations == null || annotations.length == 0) {
+    if (annotations.length == 0) {
       return Set.of();
     }
 
@@ -349,24 +383,35 @@ public final class Injector implements Closeable {
    * <p>At the very least, this will ensure that root dependencies will be closer to the top of the
    * list.
    *
+   * @param providers dependency graph nodes keyed by injectable keys
    * @return topologically sorted dependencies.
    */
   private static List<Key<?>> topologicallySortedKeys(Map<Key<?>, Node<?>> providers) {
     final var inDegreeMap = new HashMap<Key<?>, Integer>(providers.size());
+    final var childrenByParent = new HashMap<Key<?>, List<Key<?>>>(providers.size());
+
+    for (Key<?> key : providers.keySet()) {
+      childrenByParent.put(key, new ArrayList<>());
+    }
+
     for (Map.Entry<Key<?>, Node<?>> entry : providers.entrySet()) {
-      final var parents = entry.getValue().requiredParentKeys();
       int inbound = 0;
 
-      for (Key<?> parent : parents) {
+      for (Key<?> parent : entry.getValue().requiredParentKeys()) {
         if (providers.containsKey(parent)) {
           inbound++;
+          Objects.requireNonNull(childrenByParent.get(parent)).add(entry.getKey());
         }
       }
 
       inDegreeMap.put(entry.getKey(), inbound);
     }
 
-    final var nodesWithNoIncomingEdges = new ArrayDeque<Key<?>>(providers.size());
+    for (List<Key<?>> children : childrenByParent.values()) {
+      children.sort(KEY_COMPARATOR);
+    }
+
+    final var nodesWithNoIncomingEdges = new PriorityQueue<>(KEY_COMPARATOR);
     for (Map.Entry<Key<?>, Integer> entry : inDegreeMap.entrySet()) {
       if (entry.getValue() == 0) {
         nodesWithNoIncomingEdges.add(entry.getKey());
@@ -375,32 +420,117 @@ public final class Injector implements Closeable {
 
     final var topologicalOrder = new ArrayList<Key<?>>(providers.size());
     while (!nodesWithNoIncomingEdges.isEmpty()) {
-      final var key = nodesWithNoIncomingEdges.pollFirst();
+      final var key = nodesWithNoIncomingEdges.poll();
       topologicalOrder.add(key);
 
-      for (Map.Entry<Key<?>, Node<?>> entry : providers.entrySet()) {
-        final var currentParents = entry.getValue().requiredParentKeys();
+      for (Key<?> child : Objects.requireNonNull(childrenByParent.get(key))) {
+        final int previous = Objects.requireNonNull(inDegreeMap.get(child));
 
-        if (currentParents.contains(key)) {
-          if (!providers.containsKey(entry.getKey())) {
-            continue;
-          }
+        if (previous > 0) {
+          final int updated = previous - 1;
+          inDegreeMap.put(child, updated);
 
-          final var previous = inDegreeMap.get(entry.getKey());
-
-          if (previous > 0) {
-            final int updated = previous - 1;
-            inDegreeMap.put(entry.getKey(), updated);
-
-            if (updated == 0) {
-              nodesWithNoIncomingEdges.add(entry.getKey());
-            }
+          if (updated == 0) {
+            nodesWithNoIncomingEdges.add(child);
           }
         }
       }
     }
 
     return List.copyOf(topologicalOrder);
+  }
+
+  /**
+   * Creates deterministic string representation of key annotations for sorting.
+   *
+   * @param key to create annotation sort value for
+   * @return deterministic annotation sort value
+   */
+  private static String annotationSortValue(Key<?> key) {
+    return key.annotations().stream()
+        .sorted(ANNOTATION_COMPARATOR)
+        .map(Annotation::toString)
+        .collect(Collectors.joining("\n"));
+  }
+
+  private static final class AdjustedNode<T> extends Node<T> {
+    private final Node<T> delegate;
+    private final BiConsumer<Injector, ? super T> adjuster;
+    private final boolean singleton;
+    private final Supplier<T> supplier;
+
+    /**
+     * Default constructor.
+     *
+     * @param injectorReference for dependency lookups
+     * @param delegate node to create and adjust values with
+     * @param adjuster to tweak created instances after injection
+     * @param singleton whether adjusted values must be memoized
+     */
+    private AdjustedNode(
+        InjectorReference injectorReference,
+        Node<T> delegate,
+        BiConsumer<Injector, ? super T> adjuster,
+        boolean singleton) {
+      super(injectorReference, delegate.parentKeys());
+
+      this.delegate = delegate;
+      this.adjuster = adjuster;
+      this.singleton = singleton;
+      this.supplier =
+          singleton ? Memoized.memoizedProvider(this::createAdjusted) : this::createAdjusted;
+    }
+
+    @Override
+    public T get() {
+      return supplier.get();
+    }
+
+    @Override
+    public Set<Key<?>> requiredParentKeys() {
+      return delegate.requiredParentKeys();
+    }
+
+    @Override
+    public Node<T> copy(InjectorReference newInjector) {
+      return new AdjustedNode<>(newInjector, delegate.copy(newInjector), adjuster, singleton);
+    }
+
+    @Override
+    public String toYamlString(int indentationLevel) {
+      return delegate.toYamlString(indentationLevel);
+    }
+
+    @Override
+    public void close() throws IOException {
+      delegate.close();
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (!(o instanceof AdjustedNode)) return false;
+      if (!super.equals(o)) return false;
+      AdjustedNode<?> that = (AdjustedNode<?>) o;
+      return singleton == that.singleton
+          && Objects.equals(delegate, that.delegate)
+          && Objects.equals(adjuster, that.adjuster);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), delegate, adjuster, singleton);
+    }
+
+    /**
+     * Creates value via delegate node and applies adjuster to it.
+     *
+     * @return adjusted value
+     */
+    private T createAdjusted() {
+      final var instance = delegate.get();
+      adjuster.accept(injectorReference().get(), instance);
+      return instance;
+    }
   }
 
   /** Contains additional logic to help construct {@link Injector} */
@@ -417,16 +547,37 @@ public final class Injector implements Closeable {
      * @param additionalClasses to add
      * @return current builder
      */
-    public Builder add(Class<?> clazz, Class<?>... additionalClasses) {
-      addClass(clazz);
+    public Builder add(@Nullable Class<?> clazz, Class<?> @Nullable ... additionalClasses) {
+      return synchronizeMutation(
+          this,
+          () -> {
+            addClass(clazz);
 
-      if (additionalClasses != null) {
-        for (Class<?> additionalClass : additionalClasses) {
-          addClass(additionalClass);
-        }
+            if (additionalClasses != null) {
+              for (Class<?> additionalClass : additionalClasses) {
+                addClass(additionalClass);
+              }
+            }
+          });
+    }
+
+    /**
+     * Adds class to the {@link Injector} with a post-construction adjuster.
+     *
+     * <p>The adjuster runs after constructor and field injection.
+     *
+     * @param clazz to add
+     * @param adjuster to tweak created instances after injection
+     * @return current builder
+     * @param <T> is the type of the added class
+     */
+    public <T> Builder add(
+        @Nullable Class<T> clazz, @Nullable BiConsumer<Injector, ? super T> adjuster) {
+      if (adjuster == null) {
+        throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Adjuster"));
       }
 
-      return this;
+      return synchronizeMutation(this, () -> addClass(clazz, adjuster));
     }
 
     /**
@@ -436,16 +587,18 @@ public final class Injector implements Closeable {
      * @param additionalObjects to add
      * @return current builder
      */
-    public Builder add(Object object, Object... additionalObjects) {
-      addObject(object);
+    public Builder add(@Nullable Object object, Object @Nullable ... additionalObjects) {
+      return synchronizeMutation(
+          this,
+          () -> {
+            addObject(object);
 
-      if (additionalObjects != null) {
-        for (Object additionalObject : additionalObjects) {
-          addObject(additionalObject);
-        }
-      }
-
-      return this;
+            if (additionalObjects != null) {
+              for (Object additionalObject : additionalObjects) {
+                addObject(additionalObject);
+              }
+            }
+          });
     }
 
     /**
@@ -460,7 +613,19 @@ public final class Injector implements Closeable {
      * @throws IllegalArgumentException if class is {@code null}, {@code abstract} or {@code
      *     interface}, as well as from any methods called by this method
      */
-    private void addClass(Class<?> clazz) {
+    private void addClass(@Nullable Class<?> clazz) {
+      addClass(clazz, null);
+    }
+
+    /**
+     * Adds a class to the {@link Injector} with an optional post-construction adjuster.
+     *
+     * @param clazz to add
+     * @param adjuster to tweak created instances after injection, or {@code null} if not needed
+     * @param <T> is the type of the added class
+     */
+    private <T> void addClass(
+        @Nullable Class<T> clazz, @Nullable BiConsumer<Injector, ? super T> adjuster) {
       if (clazz == null) {
         throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Class"));
       }
@@ -469,20 +634,15 @@ public final class Injector implements Closeable {
         throw new IllegalArgumentException(NON_INSTANTIABLE_CLASS_TEMPLATE);
       }
 
-      synchronize(
-          () -> {
-            parseClassForGraph(clazz, false);
+      parseClassForGraph(clazz, false, adjuster);
 
-            if (isNestedNonStaticClass(clazz)) {
-              Class<?> current = clazz.getEnclosingClass();
-              do {
-                parseClassForGraph(current, true);
-                current = current.getEnclosingClass();
-              } while (current != null);
-            }
-
-            return this;
-          });
+      if (isNestedNonStaticClass(clazz)) {
+        Class<?> current = clazz.getEnclosingClass();
+        do {
+          parseClassForGraph(current, true, null);
+          current = current.getEnclosingClass();
+        } while (current != null);
+      }
     }
 
     /**
@@ -492,7 +652,7 @@ public final class Injector implements Closeable {
      * @throws IllegalArgumentException if the value is {@code null} or graph already contains this
      *     value
      */
-    private void addObject(Object value) {
+    private void addObject(@Nullable Object value) {
       if (value == null) {
         throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Value"));
       }
@@ -500,15 +660,11 @@ public final class Injector implements Closeable {
       final var classKey =
           new Key<>(value.getClass(), getQualifierAnnotations(value.getClass().getAnnotations()));
 
-      synchronize(
-          () -> {
-            if (providers.containsKey(classKey)) {
-              throw new IllegalArgumentException(String.format(DUPLICATE_VALUE_TEMPLATE, classKey));
-            }
+      if (providers.containsKey(classKey)) {
+        throw new IllegalArgumentException(String.format(DUPLICATE_VALUE_TEMPLATE, classKey));
+      }
 
-            providers.put(classKey, new Value<>(injectorReference, value));
-            return this;
-          });
+      providers.put(classKey, new Value<>(injectorReference, value));
     }
   }
 
@@ -542,18 +698,74 @@ public final class Injector implements Closeable {
      * @throws IllegalArgumentException if any of the arguments is {@code null} or from another
      *     method invocations
      */
-    public <F, T extends F> CopyBuilder replace(Class<F> from, Class<T> to) {
-      checkArguments(from, to);
+    public <F, T extends F> CopyBuilder replace(@Nullable Class<F> from, @Nullable Class<T> to) {
+      return replaceClass(from, to, null);
+    }
 
-      if (from.equals(to)) {
+    /**
+     * Replaces existing class onto another class with a post-construction adjuster.
+     *
+     * <p>The adjuster runs after constructor and field injection.
+     *
+     * @param from class to be replaced
+     * @param to class to replace to
+     * @param adjuster to tweak created instances after injection
+     * @param <F> is the type of existing class
+     * @param <T> is the type of the new class, which is expected to be a subtype of the original
+     *     class
+     * @return current builder instance
+     * @throws IllegalArgumentException if any of the arguments is {@code null} or from another
+     *     method invocations
+     */
+    public <F, T extends F> CopyBuilder replace(
+        @Nullable Class<F> from,
+        @Nullable Class<T> to,
+        @Nullable BiConsumer<Injector, ? super T> adjuster) {
+      if (adjuster == null) {
+        throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "Adjuster"));
+      }
+
+      return replaceClass(from, to, adjuster);
+    }
+
+    /**
+     * Replaces existing class registration with another class registration.
+     *
+     * @param from class to be replaced
+     * @param to class to replace to
+     * @param adjuster to tweak created replacement instances after injection, or {@code null} if
+     *     not needed
+     * @param <F> is the type of existing class
+     * @param <T> is the type of the new class, which is expected to be a subtype of the original
+     *     class
+     * @return current builder instance
+     */
+    private <F, T extends F> CopyBuilder replaceClass(
+        @Nullable Class<F> from,
+        @Nullable Class<T> to,
+        @Nullable BiConsumer<Injector, ? super T> adjuster) {
+      checkArguments(from, to);
+      final var sourceClass = Objects.requireNonNull(from);
+      final var targetClass = Objects.requireNonNull(to);
+
+      if (sourceClass.equals(targetClass)) {
         return this;
       }
 
-      final var keys = createKeys(from, to);
+      if (!sourceClass.isAssignableFrom(targetClass)) {
+        throw new IllegalArgumentException(NON_INSTANTIABLE_CLASS_TEMPLATE);
+      }
+
+      if (Modifier.isAbstract(targetClass.getModifiers())
+          || Modifier.isInterface(targetClass.getModifiers())) {
+        throw new IllegalArgumentException(NON_INSTANTIABLE_CLASS_TEMPLATE);
+      }
+
+      final var keys = createKeys(sourceClass, targetClass);
 
       // Closed via Injector.close()
       @SuppressWarnings("squid:S2095")
-      final var node = createConstructsNode(to);
+      final var node = createConstructsNode(targetClass, adjuster);
 
       return synchronize(
           () -> {
@@ -575,19 +787,31 @@ public final class Injector implements Closeable {
      * @throws IllegalArgumentException if any of the arguments is {@code null} or from another
      *     method invocations
      */
-    public <F, T extends F> CopyBuilder replace(F from, T to) {
+    public <F, T extends F> CopyBuilder replace(@Nullable F from, @Nullable T to) {
       checkArguments(from, to);
+      final var source = Objects.requireNonNull(from);
+      final var target = Objects.requireNonNull(to);
 
-      if (from.equals(to)) {
+      if (source.equals(target)) {
         return this;
       }
 
-      final var keys = createKeys(from.getClass(), to.getClass());
+      if (!source.getClass().isAssignableFrom(target.getClass())) {
+        throw new IllegalArgumentException(NON_INSTANTIABLE_CLASS_TEMPLATE);
+      }
+
+      final var keys = createKeys(source.getClass(), target.getClass());
 
       return synchronize(
           () -> {
+            final var currentNode = providers.get(keys.getKey());
+            if (!(currentNode instanceof Value<?>) || currentNode.get() != source) {
+              throw new IllegalArgumentException(
+                  String.format(MISSING_VALUE_TEMPLATE, keys.getKey()));
+            }
+
             providers.put(keys.getKey(), new RefersTo<>(injectorReference, keys.getValue()));
-            providers.put(keys.getValue(), new Value<>(injectorReference, to));
+            providers.put(keys.getValue(), new Value<>(injectorReference, target));
             return this;
           });
     }
@@ -598,7 +822,7 @@ public final class Injector implements Closeable {
      * @param from parameter to check
      * @param to parameter to check
      */
-    private void checkArguments(Object from, Object to) {
+    private void checkArguments(@Nullable Object from, @Nullable Object to) {
       if (from == null) {
         throw new IllegalArgumentException(String.format(NULL_VALUE_TEMPLATE, "From"));
       }
@@ -616,7 +840,7 @@ public final class Injector implements Closeable {
      * @param <F> is the type of existing class
      * @param <T> is the type of the new class, which is expected to be a subtype of the original
      *     class
-     * @return current builder instance
+     * @return immutable entry where key is source key and value is replacement key
      * @throws IllegalArgumentException if {@code from} was not present before or has been replaced,
      *     or {@code to} is already registered
      */
@@ -664,15 +888,27 @@ public final class Injector implements Closeable {
     public final Injector build() {
       return synchronize(
           () -> {
-            for (Node<?> node : providers.values()) {
-              for (Key<?> key : node.parentKeys()) {
-                if (!Injector.class.equals(key.type()) && !providers.containsKey(key)) {
+            for (Map.Entry<Key<?>, Node<?>> entry : providers.entrySet()) {
+              for (Key<?> key : entry.getValue().parentKeys()) {
+                if (!isUnqualifiedInjectorKey(key) && !providers.containsKey(key)) {
                   throw new IllegalArgumentException(String.format(MISSING_VALUE_TEMPLATE, key));
                 }
               }
             }
 
-            return new Injector(injectorReference, Map.copyOf(providers));
+            checkForCaptiveDependencies();
+
+            for (Map.Entry<Key<?>, Node<?>> entry : providers.entrySet()) {
+              checkForCycle(entry.getKey(), entry.getValue());
+            }
+
+            final var newInjectorReference = new InjectorReference();
+            final var copiedProviders = new HashMap<Key<?>, Node<?>>(providers.size());
+            for (Map.Entry<Key<?>, Node<?>> entry : providers.entrySet()) {
+              copiedProviders.put(entry.getKey(), entry.getValue().copy(newInjectorReference));
+            }
+
+            return new Injector(newInjectorReference, Map.copyOf(copiedProviders));
           });
     }
 
@@ -695,6 +931,31 @@ public final class Injector implements Closeable {
     }
 
     /**
+     * Runs a mutating builder operation under {@link Lock}, rolling back provider changes if the
+     * operation fails.
+     *
+     * @param builder to return after successful mutation
+     * @param mutation to run
+     * @param <B> is the type of the builder
+     * @return provided builder after successful mutation
+     */
+    protected final <B extends AbstractBuilder> B synchronizeMutation(
+        B builder, Runnable mutation) {
+      return synchronize(
+          () -> {
+            final var snapshot = new HashMap<>(providers);
+            try {
+              mutation.run();
+              return builder;
+            } catch (RuntimeException e) {
+              providers.clear();
+              providers.putAll(snapshot);
+              throw e;
+            }
+          });
+    }
+
+    /**
      * Allows us to perform recursive class lookups, if required.
      *
      * <p>Contains a special behavior to handle nested non-static classes - the default constructor
@@ -705,10 +966,15 @@ public final class Injector implements Closeable {
      * @param clazz to add
      * @param skipDuplicates marking whether we should tolerate duplicates to save execution time or
      *     throw an exception
+     * @param adjuster to tweak created instances after injection, or {@code null} if not needed
+     * @param <T> is the type of the class to parse
      * @throws IllegalArgumentException if non-tolerable duplicate was created or attempted to use
      *     {@link Collection} or {@link Map} for injection
      */
-    protected void parseClassForGraph(Class<?> clazz, boolean skipDuplicates) {
+    protected <T> void parseClassForGraph(
+        Class<T> clazz,
+        boolean skipDuplicates,
+        @Nullable BiConsumer<Injector, ? super T> adjuster) {
       final var classKey = new Key<>(clazz, getQualifierAnnotations(clazz.getAnnotations()));
 
       if (providers.containsKey(classKey)) {
@@ -719,80 +985,186 @@ public final class Injector implements Closeable {
         }
       }
 
-      final var node = createConstructsNode(clazz);
+      final var node = createConstructsNode(clazz, adjuster);
       providers.put(classKey, node);
       checkForCycle(classKey, node);
 
       for (Method providerMethod : getProviderMethods(clazz)) {
-        final var methodReturnType = providerMethod.getGenericReturnType();
-
-        if (methodReturnType instanceof ParameterizedType) {
-          throw new IllegalArgumentException(NO_WRAPPER_EXPECTED_TEMPLATE);
-        }
-
-        final var methodReturnClass = (Class<?>) methodReturnType;
-        final var methodAnnotations = getQualifierAnnotations(providerMethod.getAnnotations());
-        final var methodKey = new Key<>(methodReturnClass, methodAnnotations);
-        final var methodReturnTypeFields = getFields(methodReturnClass);
-
-        if (providers.containsKey(methodKey)) {
-          throw new IllegalArgumentException(String.format(DUPLICATE_VALUE_TEMPLATE, classKey));
-        }
-
-        final var methodParameters = getParameters(providerMethod);
-
-        Node<?> methodNode;
-        if (providerMethod.isAnnotationPresent(Singleton.class)
-            || methodReturnClass.isAnnotationPresent(Singleton.class)) {
-          methodNode =
-              new ProvidesSingleton<>(
-                  injectorReference,
-                  classKey,
-                  providerMethod,
-                  methodReturnClass,
-                  methodParameters,
-                  methodReturnTypeFields);
-        } else {
-          methodNode =
-              new ProvidesNew<>(
-                  injectorReference,
-                  classKey,
-                  providerMethod,
-                  methodReturnClass,
-                  methodParameters,
-                  methodReturnTypeFields);
-        }
-
-        providers.put(methodKey, methodNode);
-        checkForCycle(methodKey, methodNode);
+        parseProviderMethodForGraph(classKey, providerMethod);
       }
+    }
+
+    /**
+     * Parses a {@link Provides} method and adds its node to the dependency graph.
+     *
+     * @param classKey key of the factory/configuration class declaring the method
+     * @param providerMethod method to parse
+     * @throws IllegalArgumentException if provider method return type is unsupported or duplicates
+     *     an existing key
+     */
+    private void parseProviderMethodForGraph(Key<?> classKey, Method providerMethod) {
+      final var methodReturnClass = getPlainClass(providerMethod.getGenericReturnType());
+
+      if (Void.TYPE.equals(methodReturnClass)
+          || Void.class.equals(methodReturnClass)
+          || Provider.class.equals(methodReturnClass)
+          || Supplier.class.equals(methodReturnClass)) {
+        throw new IllegalArgumentException(NO_WRAPPER_EXPECTED_TEMPLATE);
+      }
+
+      final var methodAnnotations = getQualifierAnnotations(providerMethod.getAnnotations());
+      final var methodKey =
+          new Key<>(
+              methodReturnClass,
+              methodAnnotations.isEmpty()
+                  ? getQualifierAnnotations(methodReturnClass.getAnnotations())
+                  : methodAnnotations);
+      final var methodReturnTypeFields = getFields(methodReturnClass);
+
+      if (providers.containsKey(methodKey)) {
+        throw new IllegalArgumentException(String.format(DUPLICATE_VALUE_TEMPLATE, methodKey));
+      }
+
+      final var methodParameters = getParameters(providerMethod);
+
+      Node<?> methodNode;
+      if (providerMethod.isAnnotationPresent(Singleton.class)
+          || methodReturnClass.isAnnotationPresent(Singleton.class)) {
+        methodNode =
+            new ProvidesSingleton<>(
+                injectorReference,
+                classKey,
+                providerMethod,
+                methodReturnClass,
+                methodParameters,
+                methodReturnTypeFields);
+      } else {
+        methodNode =
+            new ProvidesNew<>(
+                injectorReference,
+                classKey,
+                providerMethod,
+                methodReturnClass,
+                methodParameters,
+                methodReturnTypeFields);
+      }
+
+      providers.put(methodKey, methodNode);
+      checkForCycle(methodKey, methodNode);
     }
 
     /**
      * Dismantles class definition to the {@link ConstructsNew} or {@link ConstructsSingleton} node.
      *
      * @param clazz to dismantle
+     * @param adjuster to tweak created instances after injection, or {@code null} if not needed
      * @return new node for the dependency graph
      * @param <T> is the type of the node
      */
-    protected <T> Node<T> createConstructsNode(Class<T> clazz) {
+    protected <T> Node<T> createConstructsNode(
+        Class<T> clazz, @Nullable BiConsumer<Injector, ? super T> adjuster) {
       final var constructor = getInjectableConstructor(clazz);
       final var constructorParameters = getParameters(constructor);
       final var classFields = getFields(clazz);
 
-      if (clazz.isAnnotationPresent(Singleton.class)) {
-        return new ConstructsSingleton<>(
-            injectorReference, constructor, constructorParameters, classFields);
-      } else {
-        return new ConstructsNew<>(
-            injectorReference, constructor, constructorParameters, classFields);
+      final var isSingleton = clazz.isAnnotationPresent(Singleton.class);
+      final Node<T> node =
+          isSingleton
+              ? new ConstructsSingleton<>(
+                  injectorReference, constructor, constructorParameters, classFields)
+              : new ConstructsNew<>(
+                  injectorReference, constructor, constructorParameters, classFields);
+
+      return adjuster == null
+          ? node
+          : new AdjustedNode<>(injectorReference, node, adjuster, isSingleton);
+    }
+
+    /**
+     * Checks that singleton-scoped nodes do not directly depend on non-singleton nodes.
+     *
+     * @throws IllegalArgumentException if captive dependency is found
+     */
+    private void checkForCaptiveDependencies() {
+      for (Map.Entry<Key<?>, Node<?>> entry : providers.entrySet()) {
+        if (!isSingletonScoped(entry.getValue())) {
+          continue;
+        }
+
+        for (Key<?> parentKey : entry.getValue().requiredParentKeys()) {
+          if (mustSkipCaptiveDependencyCheck(entry.getKey(), entry.getValue(), parentKey)) {
+            continue;
+          }
+
+          if (!isSingletonScoped(parentKey)) {
+            throw new IllegalArgumentException(
+                String.format(
+                    CAPTIVE_DEPENDENCY_TEMPLATE,
+                    entry.getKey(),
+                    parentKey,
+                    parentKey,
+                    parentKey.type().getName(),
+                    parentKey.type().getName()));
+          }
+        }
       }
+    }
+
+    /**
+     * Determines whether a dependency edge should be ignored by captive dependency validation.
+     *
+     * @param ownerKey key of the node whose dependency is checked
+     * @param ownerNode node whose dependency is checked
+     * @param parentKey dependency key to evaluate
+     * @return {@code true} if validation must skip the edge
+     */
+    private boolean mustSkipCaptiveDependencyCheck(
+        Key<?> ownerKey, Node<?> ownerNode, Key<?> parentKey) {
+      if (isUnqualifiedInjectorKey(parentKey) || !providers.containsKey(parentKey)) {
+        return true;
+      }
+
+      if (ownerNode instanceof ProvidesNew<?>
+          && ((ProvidesNew<?>) ownerNode).getClassKey().equals(parentKey)) {
+        return true;
+      }
+
+      return isNestedNonStaticClass(ownerKey.type())
+          && parentKey.type().equals(ownerKey.type().getEnclosingClass());
+    }
+
+    /**
+     * Checks whether the node registered under the key is singleton-scoped.
+     *
+     * @param key to check
+     * @return {@code true} if the registered node is singleton-scoped
+     */
+    private boolean isSingletonScoped(Key<?> key) {
+      return isSingletonScoped(Objects.requireNonNull(providers.get(key)));
+    }
+
+    /**
+     * Checks whether the node is singleton-scoped.
+     *
+     * @param node to check
+     * @return {@code true} if the node is singleton-scoped
+     */
+    private boolean isSingletonScoped(Node<?> node) {
+      if (node instanceof RefersTo<?>) {
+        final var targetKey = node.parentKeys().iterator().next();
+        return isSingletonScoped(targetKey);
+      }
+
+      return node instanceof ConstructsSingleton<?>
+          || node instanceof ProvidesSingleton<?>
+          || node instanceof Value<?>
+          || (node instanceof AdjustedNode<?> && ((AdjustedNode<?>) node).singleton);
     }
 
     /**
      * Checks if there are any cycles in the dependency graph.
      *
-     * <p>Nested non-static classes have additional behavior when it comes to constructors where
+     * <p>Nested non-static classes have additional behavior when it comes to constructors where the
      * enclosing class is passed as a first parameter to the class constructor.
      *
      * <p>Here for cycle detection, we want to exclude any enclosing classes from the visited set -
@@ -808,7 +1180,7 @@ public final class Injector implements Closeable {
     /**
      * Checks recursively (BFS-like) if there are any cycles in the dependency graph.
      *
-     * <p>Nested non-static classes have additional behavior when it comes to constructors where
+     * <p>Nested non-static classes have additional behavior when it comes to constructors where the
      * enclosing class is passed as a first parameter to the class constructor.
      *
      * <p>Here for cycle detection, we want to exclude any enclosing classes from the visited set -
@@ -816,7 +1188,8 @@ public final class Injector implements Closeable {
      *
      * @param key to start check from
      * @param node which corresponds to the key
-     * @param visited set of nodes for validation
+     * @param visiting keys in the current traversal path
+     * @param processed keys already checked for cycles
      * @throws IllegalArgumentException if the cycle was found
      */
     private void checkForCycle(
@@ -833,12 +1206,7 @@ public final class Injector implements Closeable {
       final var isNestedNonStaticClass = isNestedNonStaticClass(key.type());
 
       for (Key<?> consumedKey : node.requiredParentKeys()) {
-        if (
-        // Skip nested node required classes
-        (isNestedNonStaticClass && consumedKey.type().equals(key.type().getEnclosingClass()))
-            // Skip method's enclosing class
-            || (node instanceof ProvidesNew
-                && ((ProvidesNew<?>) node).getClassKey().equals(consumedKey))) {
+        if (isNestedNonStaticClass && consumedKey.type().equals(key.type().getEnclosingClass())) {
           continue;
         }
 
@@ -906,8 +1274,8 @@ public final class Injector implements Closeable {
      * {@link Method}.
      *
      * @param executable to identify {@link Key} for
-     * @return a fixed size map of {@link Parameter} and their {@link Key} which declaration order
-     *     matches argument declaration order of the {@link Executable} parameters
+     * @return an immutable list of {@link ParameterInformation} whose declaration order matches
+     *     argument declaration order of the {@link Executable} parameters
      */
     protected static List<ParameterInformation> getParameters(Executable executable) {
       final var parameters = executable.getParameters();
@@ -955,7 +1323,7 @@ public final class Injector implements Closeable {
      * Identifies the key which must be used to fetch a value for the given {@link Field}.
      *
      * @param clazz to identify injectable {@link Field}s with their {@link Key}s
-     * @return a fixed size map of {@link Field} and their {@link Key}s
+     * @return an immutable list of {@link FieldInformation} for injectable fields
      */
     protected static List<FieldInformation> getFields(Class<?> clazz) {
       final var fields = new ArrayList<FieldInformation>();
@@ -965,6 +1333,10 @@ public final class Injector implements Closeable {
         for (Field field : current.getDeclaredFields()) {
           if (!field.isAnnotationPresent(Inject.class)) {
             continue;
+          }
+
+          if (Modifier.isStatic(field.getModifiers()) || Modifier.isFinal(field.getModifiers())) {
+            throw new IllegalArgumentException("Injected field must not be static or final");
           }
 
           final var fieldType = field.getGenericType();
@@ -992,10 +1364,17 @@ public final class Injector implements Closeable {
      */
     protected static Set<Method> getProviderMethods(Class<?> clazz) {
       final var methods = new HashSet<Method>();
+      final var descendantMethods = new ArrayList<Method>();
 
       Class<?> current = clazz;
       while (!current.equals(Object.class)) {
         for (Method method : current.getDeclaredMethods()) {
+          if (descendantMethods.stream().anyMatch(descendant -> overrides(descendant, method))) {
+            continue;
+          }
+
+          descendantMethods.add(method);
+
           if (method.isAnnotationPresent(Provides.class)) {
             methods.add(method);
           }
@@ -1008,6 +1387,72 @@ public final class Injector implements Closeable {
     }
 
     /**
+     * Checks whether one method overrides another.
+     *
+     * @param descendant possible overriding method
+     * @param ancestor possible overridden method
+     * @return {@code true} if descendant overrides ancestor
+     */
+    private static boolean overrides(Method descendant, Method ancestor) {
+      if (!ancestor.getDeclaringClass().isAssignableFrom(descendant.getDeclaringClass())) {
+        return false;
+      }
+
+      final int descendantModifiers = descendant.getModifiers();
+      final int ancestorModifiers = ancestor.getModifiers();
+      if (Modifier.isPrivate(descendantModifiers)
+          || Modifier.isPrivate(ancestorModifiers)
+          || Modifier.isStatic(descendantModifiers)
+          || Modifier.isStatic(ancestorModifiers)
+          || Modifier.isFinal(ancestorModifiers)) {
+        return false;
+      }
+
+      if (!methodSignature(descendant).equals(methodSignature(ancestor))) {
+        return false;
+      }
+
+      return Modifier.isPublic(ancestorModifiers)
+          || Modifier.isProtected(ancestorModifiers)
+          || descendant
+              .getDeclaringClass()
+              .getPackageName()
+              .equals(ancestor.getDeclaringClass().getPackageName());
+    }
+
+    /**
+     * Creates method signature string from method name and parameter types.
+     *
+     * @param method to create signature for
+     * @return method signature string
+     */
+    private static String methodSignature(Method method) {
+      return method.getName() + List.of(method.getParameterTypes());
+    }
+
+    /**
+     * Fetch a non-generic class from a {@link Type}.
+     *
+     * @param type to analyze
+     * @return plain class represented by the type
+     * @throws IllegalArgumentException if the type cannot be represented by a plain class key
+     */
+    protected static Class<?> getPlainClass(Type type) {
+      if (type instanceof Class<?>) {
+        return (Class<?>) type;
+      }
+
+      if (type instanceof ParameterizedType
+          || type instanceof TypeVariable<?>
+          || type instanceof WildcardType
+          || type instanceof GenericArrayType) {
+        throw new IllegalArgumentException(NO_WRAPPER_EXPECTED_TEMPLATE);
+      }
+
+      throw new IllegalArgumentException(NO_WRAPPER_EXPECTED_TEMPLATE);
+    }
+
+    /**
      * Fetch the class of the value type and its generic wrapper class from the {@link Type}.
      *
      * <p>Used to identify {@link Provider} and {@link Supplier} usage.
@@ -1016,14 +1461,13 @@ public final class Injector implements Closeable {
      * @return a {@link Map.Entry} where the key is the type of the value and value is the type of
      *     the wrapper
      */
-    protected static Map.Entry<Class<?>, Class<?>> getGenericValueAndWrapper(Type type) {
+    protected static Map.Entry<Class<?>, @Nullable Class<?>> getGenericValueAndWrapper(Type type) {
       Class<?> wrapperClass;
       Class<?> valueClass;
 
       if (type instanceof ParameterizedType) {
         final var parameterizedType = (ParameterizedType) type;
-
-        wrapperClass = (Class<?>) parameterizedType.getRawType();
+        wrapperClass = getPlainClass(parameterizedType.getRawType());
 
         if (ReflectionNode.isNotSupportedWrapperClass(wrapperClass)) {
           throw new IllegalArgumentException(
@@ -1040,10 +1484,14 @@ public final class Injector implements Closeable {
                   actualTypeArgument.getTypeName()));
         }
 
-        valueClass = (Class<?>) actualTypeArgument;
+        valueClass = getPlainClass(actualTypeArgument);
       } else {
-        valueClass = (Class<?>) type;
+        valueClass = getPlainClass(type);
         wrapperClass = null;
+
+        if (Provider.class.equals(valueClass) || Supplier.class.equals(valueClass)) {
+          throw new IllegalArgumentException(NO_WRAPPER_EXPECTED_TEMPLATE);
+        }
       }
 
       return new AbstractMap.SimpleImmutableEntry<>(valueClass, wrapperClass);

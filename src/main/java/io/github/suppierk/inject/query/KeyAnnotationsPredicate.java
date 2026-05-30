@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Predicate to allow searching for a specific key in {@link io.github.suppierk.inject.Injector}.
@@ -56,7 +57,7 @@ public final class KeyAnnotationsPredicate implements Predicate<Key<?>> {
 
   /** {@inheritDoc} */
   @Override
-  public boolean test(Key<?> key) {
+  public boolean test(@Nullable Key<?> key) {
     if (key == null) {
       throw new IllegalArgumentException("Key must not be null");
     }
@@ -73,13 +74,16 @@ public final class KeyAnnotationsPredicate implements Predicate<Key<?>> {
     } else if (ANY_MATCH == mode) {
       return key.annotations().stream().anyMatch(wrapperPredicate);
     } else {
-      return !key.annotations().isEmpty() && key.annotations().stream().allMatch(wrapperPredicate);
+      return !key.annotations().isEmpty()
+          && key.annotations().stream().allMatch(wrapperPredicate)
+          && annotationQueries.stream()
+              .allMatch(query -> key.annotations().stream().anyMatch(query));
     }
   }
 
   /** {@inheritDoc} */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof KeyAnnotationsPredicate)) return false;
     KeyAnnotationsPredicate that = (KeyAnnotationsPredicate) o;
     return mode == that.mode && Objects.equals(annotationQueries, that.annotationQueries);
@@ -112,7 +116,7 @@ public final class KeyAnnotationsPredicate implements Predicate<Key<?>> {
         result.append(", ");
       }
 
-      result.append(annotationQuery.toString());
+      result.append(annotationQuery);
     }
 
     return result.append("]").toString();
@@ -189,16 +193,22 @@ public final class KeyAnnotationsPredicate implements Predicate<Key<?>> {
      * @return current builder
      */
     public AnnotationPredicates having(
-        Function<
+        @Nullable
+            Function<
                 AnnotationPredicate.AnnotationClass,
-                AnnotationPredicate.AnnotationMembersPredicate<?>>
+                AnnotationPredicate.@Nullable AnnotationMembersPredicate<?>>
             annotationQueryModifier) {
       if (annotationQueryModifier == null) {
         throw new IllegalArgumentException("annotationQueryModifier cannot be null");
       }
 
-      annotationQueries.add(
-          annotationQueryModifier.apply(AnnotationPredicate.annotationPredicate()).build());
+      final var annotationMembersPredicate =
+          annotationQueryModifier.apply(AnnotationPredicate.annotationPredicate());
+      if (annotationMembersPredicate == null) {
+        throw new IllegalArgumentException("annotationQueryModifier returned null");
+      }
+
+      annotationQueries.add(annotationMembersPredicate.build());
       return this;
     }
 
@@ -208,7 +218,7 @@ public final class KeyAnnotationsPredicate implements Predicate<Key<?>> {
      * @param annotationPredicate to add
      * @return current builder
      */
-    public AnnotationPredicates having(AnnotationPredicate<?> annotationPredicate) {
+    public AnnotationPredicates having(@Nullable AnnotationPredicate<?> annotationPredicate) {
       if (annotationPredicate == null) {
         throw new IllegalArgumentException("annotationPredicate cannot be null");
       }

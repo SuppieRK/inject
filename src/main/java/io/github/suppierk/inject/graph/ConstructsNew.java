@@ -29,8 +29,10 @@ import io.github.suppierk.inject.ParameterInformation;
 import io.github.suppierk.utils.ConsoleConstants;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Defines a node which instantiates a new class instance by calling its constructor.
@@ -38,6 +40,11 @@ import java.util.stream.Collectors;
  * @param <T> is the type of the instance this node refers to
  */
 public class ConstructsNew<T> extends ReflectionNode<T> {
+  private static final Comparator<FieldInformation> FIELD_INFORMATION_COMPARATOR =
+      Comparator.comparing((FieldInformation info) -> info.getQualifierKey().type().getName())
+          .thenComparing(info -> info.getField().getDeclaringClass().getName())
+          .thenComparing(info -> info.getField().getName());
+
   protected final Constructor<T> constructor;
 
   /**
@@ -50,10 +57,10 @@ public class ConstructsNew<T> extends ReflectionNode<T> {
    * @throws IllegalArgumentException if constructor is {@code null}
    */
   public ConstructsNew(
-      InjectorReference injectorReference,
-      Constructor<T> constructor,
-      List<ParameterInformation> parametersInformation,
-      List<FieldInformation> fieldsInformation) {
+      @Nullable InjectorReference injectorReference,
+      @Nullable Constructor<T> constructor,
+      @Nullable List<ParameterInformation> parametersInformation,
+      @Nullable List<FieldInformation> fieldsInformation) {
     super(injectorReference, parametersInformation, fieldsInformation);
 
     if (constructor == null) {
@@ -96,7 +103,7 @@ public class ConstructsNew<T> extends ReflectionNode<T> {
 
   /** Constructor equality leverages parameters, which we already check in superclass. */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof ConstructsNew)) return false;
     return super.equals(o);
   }
@@ -155,6 +162,7 @@ public class ConstructsNew<T> extends ReflectionNode<T> {
                 : String.format(
                     "%n%s",
                     fieldsInformation().stream()
+                        .sorted(FIELD_INFORMATION_COMPARATOR)
                         .map(
                             info -> info.getQualifierKey().toYamlString(true, indentationLevel + 2))
                         .collect(Collectors.joining(String.format("%n"))))));

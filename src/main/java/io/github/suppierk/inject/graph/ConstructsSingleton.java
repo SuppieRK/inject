@@ -30,6 +30,7 @@ import io.github.suppierk.utils.Memoized;
 import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.function.Consumer;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Defines a node which calls {@link ConstructsNew} logic to instantiate the value and stores
@@ -53,14 +54,14 @@ public final class ConstructsSingleton<T> extends ConstructsNew<T> {
    * @throws IllegalArgumentException if constructor is {@code null}
    */
   public ConstructsSingleton(
-      InjectorReference injectorReference,
-      Constructor<T> constructor,
-      List<ParameterInformation> parametersInformation,
-      List<FieldInformation> fieldsInformation) {
+      @Nullable InjectorReference injectorReference,
+      @Nullable Constructor<T> constructor,
+      @Nullable List<ParameterInformation> parametersInformation,
+      @Nullable List<FieldInformation> fieldsInformation) {
     this(
         injectorReference,
         constructor,
-        createOnCloseConsumer(constructor.getDeclaringClass()),
+        createOnCloseConsumer(declaringClass(constructor)),
         parametersInformation,
         fieldsInformation);
   }
@@ -76,14 +77,22 @@ public final class ConstructsSingleton<T> extends ConstructsNew<T> {
    * @throws IllegalArgumentException if constructor is {@code null}
    */
   private ConstructsSingleton(
-      InjectorReference injectorReference,
-      Constructor<T> constructor,
+      @Nullable InjectorReference injectorReference,
+      @Nullable Constructor<T> constructor,
       Consumer<T> onCloseConsumer,
-      List<ParameterInformation> parametersInformation,
-      List<FieldInformation> fieldsInformation) {
+      @Nullable List<ParameterInformation> parametersInformation,
+      @Nullable List<FieldInformation> fieldsInformation) {
     super(injectorReference, constructor, parametersInformation, fieldsInformation);
     this.memoized = Memoized.memoizedProvider(super::get);
     this.onCloseConsumer = onCloseConsumer;
+  }
+
+  private static <T> Class<T> declaringClass(@Nullable Constructor<T> constructor) {
+    if (constructor == null) {
+      throw new IllegalArgumentException("Constructor is null");
+    }
+
+    return constructor.getDeclaringClass();
   }
 
   /** {@inheritDoc} */
@@ -107,7 +116,7 @@ public final class ConstructsSingleton<T> extends ConstructsNew<T> {
 
   /** {@inheritDoc} */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof ConstructsSingleton)) return false;
     return super.equals(o);
   }
