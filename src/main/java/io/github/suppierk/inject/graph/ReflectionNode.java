@@ -118,6 +118,10 @@ public abstract class ReflectionNode<T> extends Node<T> {
    */
   @SuppressWarnings("squid:S3011")
   protected T injectFields(T instance) throws IllegalAccessException {
+    if (fieldsInformation().isEmpty()) {
+      return instance;
+    }
+
     for (FieldInformation fieldInformation : fieldsInformation()) {
       if (fieldInformation.getField().trySetAccessible()) {
         final var currentFieldNode =

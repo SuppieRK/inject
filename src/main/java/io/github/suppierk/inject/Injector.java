@@ -54,6 +54,7 @@ import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -1408,7 +1409,8 @@ public final class Injector implements Closeable {
         return false;
       }
 
-      if (!methodSignature(descendant).equals(methodSignature(ancestor))) {
+      if (!descendant.getName().equals(ancestor.getName())
+          || !Arrays.equals(descendant.getParameterTypes(), ancestor.getParameterTypes())) {
         return false;
       }
 
@@ -1418,16 +1420,6 @@ public final class Injector implements Closeable {
               .getDeclaringClass()
               .getPackageName()
               .equals(ancestor.getDeclaringClass().getPackageName());
-    }
-
-    /**
-     * Creates method signature string from method name and parameter types.
-     *
-     * @param method to create signature for
-     * @return method signature string
-     */
-    private static String methodSignature(Method method) {
-      return method.getName() + List.of(method.getParameterTypes());
     }
 
     /**
